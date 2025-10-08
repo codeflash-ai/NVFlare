@@ -163,10 +163,9 @@ def get_last_token(input_string):
     if not input_string:
         return input_string
 
-    tokens = input_string.split(".")
-    if len(tokens) > 1:
-        last_token = tokens[-1]
-        return last_token
+    head, sep, tail = input_string.rpartition(".")
+    if sep:
+        return tail
     else:
         return input_string
 
