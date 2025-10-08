@@ -96,10 +96,13 @@ def filter_indices(app_indices_configs: Dict[str, Dict[str, Tuple]]) -> Dict[str
 def filter_config_name_and_values(
     excluded_key_list: List[str], key_indices: Dict[str, List[KeyIndex]]
 ) -> Dict[str, KeyIndex]:
+    excluded_set = set(excluded_key_list)
     temp_results = {}
     for key, key_index_list in key_indices.items():
+        if key in excluded_set:
+            continue
         for key_index in key_index_list:
-            if key not in excluded_key_list and key_index.value not in excluded_key_list:
+            if key_index.value not in excluded_set:
                 # duplicated key will be over-written by last one
                 temp_results[key] = key_index
 
