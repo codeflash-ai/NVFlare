@@ -70,46 +70,70 @@ class Adapter:
 
     def call(self, future, *args, **kwargs):  # this will be called by StreamCell upon receiving the first byte of blob
         headers = future.headers
-        stream_req_id = headers.get(StreamHeaderKey.STREAM_REQ_ID, "")
-        origin = headers.get(MessageHeaderKey.ORIGIN, None)
+        # Cache frequently used keys to avoid repeated attribute lookups and string construction
+        sreq_id_key = StreamHeaderKey.STREAM_REQ_ID
+        origin_key = MessageHeaderKey.ORIGIN
+        channel_key = StreamHeaderKey.CHANNEL
+        topic_key = StreamHeaderKey.TOPIC
+        req_id_key = MessageHeaderKey.REQ_ID
+        secure_key = MessageHeaderKey.SECURE
+        optional_key = MessageHeaderKey.OPTIONAL
+
+        stream_req_id = headers.get(sreq_id_key, "")
+        origin = headers.get(origin_key, None)
         result = future.result()
-        self.logger.debug(f"{stream_req_id=}: {headers=}, incoming data={result}")
+
+        # Only format costly debug logs if enabled
+        logger_debug = self.logger.debug
+        if self.logger.isEnabledFor(10):  # logging.DEBUG == 10
+            logger_debug(f"{stream_req_id=}: {headers=}, incoming data={result}")
+
+        # Avoid repeated .get calls by grouping header read/set logic
         request = Message(headers, result)
 
-        decode_payload(request, StreamHeaderKey.PAYLOAD_ENCODING, fobs_ctx=self.cell.get_fobs_context())
+        # Caching fobs_ctx since get_fobs_context is used twice
+        fobs_ctx = self.cell.get_fobs_context()
+        decode_payload(request, StreamHeaderKey.PAYLOAD_ENCODING, fobs_ctx=fobs_ctx)
 
-        channel = request.get_header(StreamHeaderKey.CHANNEL)
+        channel = request.get_header(channel_key)
         request.set_header(MessageHeaderKey.CHANNEL, channel)
-        topic = request.get_header(StreamHeaderKey.TOPIC)
+        topic = request.get_header(topic_key)
         request.set_header(MessageHeaderKey.TOPIC, topic)
-        self.logger.debug(f"Call back on {stream_req_id=}: {channel=}, {topic=}")
 
-        req_id = request.get_header(MessageHeaderKey.REQ_ID, "")
-        secure = request.get_header(MessageHeaderKey.SECURE, False)
-        optional = request.get_header(MessageHeaderKey.OPTIONAL, False)
-        self.logger.debug(f"{stream_req_id=}: on {channel=}, {topic=}")
+        if self.logger.isEnabledFor(10):
+            logger_debug(f"Call back on {stream_req_id=}: {channel=}, {topic=}")
+
+        req_id = request.get_header(req_id_key, "")
+        secure = request.get_header(secure_key, False)
+        optional = request.get_header(optional_key, False)
+
+        if self.logger.isEnabledFor(10):
+            logger_debug(f"{stream_req_id=}: on {channel=}, {topic=}")
+
         response = self.cb(request, *args, **kwargs)
-        self.logger.debug(f"response available: {stream_req_id=}: on {channel=}, {topic=}")
+
+        if self.logger.isEnabledFor(10):
+            logger_debug(f"response available: {stream_req_id=}: on {channel=}, {topic=}")
 
         if not stream_req_id:
             # no need to reply!
-            self.logger.debug("Do not send reply because there is no stream_req_id!")
+            if self.logger.isEnabledFor(10):
+                logger_debug("Do not send reply because there is no stream_req_id!")
             return
 
-        response.add_headers(
-            {
-                MessageHeaderKey.REQ_ID: req_id,
-                MessageHeaderKey.MSG_TYPE: MessageType.REPLY,
-                StreamHeaderKey.STREAM_REQ_ID: stream_req_id,
-            }
-        )
+        # Use direct set_header instead of add_headers for performance since it's only three items
+        response.set_header(req_id_key, req_id)
+        response.set_header(MessageHeaderKey.MSG_TYPE, MessageType.REPLY)
+        response.set_header(sreq_id_key, stream_req_id)
 
-        encode_payload(response, StreamHeaderKey.PAYLOAD_ENCODING, fobs_ctx=self.cell.get_fobs_context())
-        self.logger.debug(f"sending: {stream_req_id=}: {response.headers=}, target={origin}")
+        encode_payload(response, StreamHeaderKey.PAYLOAD_ENCODING, fobs_ctx=fobs_ctx)
+        if self.logger.isEnabledFor(10):
+            logger_debug(f"sending: {stream_req_id=}: {response.headers=}, target={origin}")
         reply_future = self.cell.send_blob(
             CellChannel.RETURN_ONLY, f"{channel}:{topic}", origin, response, secure, optional
         )
-        self.logger.debug(f"Done sending: {stream_req_id=}: {reply_future=}")
+        if self.logger.isEnabledFor(10):
+            logger_debug(f"Done sending: {stream_req_id=}: {reply_future=}")
 
 
 class Cell(StreamCell):
