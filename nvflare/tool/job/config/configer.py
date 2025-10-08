@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_cast_type_cache = {}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -114,7 +116,14 @@ def _cast_type(key_index, cli_value):
     if key_index.value is None:
         return cli_value
 
+    # Fast-path: see if we've already casted this key/value before (key likely stable within session)
+    cache_key = (key_index.key, cli_value)
+    if cache_key in _cast_type_cache:
+        return _cast_type_cache[cache_key]
+
+    # This is extremely expensive, so we minimize repeated calls using cache
     new_value = ConfigFactory.parse_string(f"{key_index.key}={cli_value}")[key_index.key]
+    _cast_type_cache[cache_key] = new_value
     return new_value
 
 
@@ -148,10 +157,12 @@ def convert_to_number(value: str):
     if not value:
         return value
 
+    # Optimization: check for integer or float via isdigit and single-dot position in one pass
     try:
         if value.isdigit():
             return int(value)
-        elif value.replace(".", "").isdigit():
+        # Only numbers of form "12.34", not "1.2.3"
+        elif value.count('.') == 1 and value.replace(".", "").isdigit():
             return float(value)
         else:
             return value
@@ -174,7 +185,7 @@ def get_last_token(input_string):
 def handle_key_in_path_notation_or_new_key(file: str, key: str, cli_value: str, config: ConfigTree, key_indices: Dict):
 
     key_value = None
-    parent, index, key = split_array_key(key)
+    parent, index, subkey = split_array_key(key)
     if parent is not None and index is not None:
         # we have key expressed in the form of array such as component[index]
         parent_config_list = config.get(parent)
@@ -182,11 +193,11 @@ def handle_key_in_path_notation_or_new_key(file: str, key: str, cli_value: str, 
             raise ValueError(f"invalid key '{key}' for file {file}")
         index_config = parent_config_list[index]
         if cli_value:
-            index_config.put(key, cli_value)
-            key_value = index_config.get(key)
+            index_config.put(subkey, cli_value)
+            key_value = index_config.get(subkey)
         else:
             # if the value is None, we need to drop the key
-            index_config.pop(key)
+            index_config.pop(subkey)
     else:
         # we have key has no array component.
         if cli_value:
@@ -195,10 +206,10 @@ def handle_key_in_path_notation_or_new_key(file: str, key: str, cli_value: str, 
         else:
             config.pop(key)
 
-    last_token = get_last_token(key)
+    last_token = get_last_token(subkey if parent is not None else key)
     if key_value:
         # now update the key
-        key_index = KeyIndex(key, key_value)
+        key_index = KeyIndex(subkey if parent is not None else key, key_value)
         key_indices[last_token] = [key_index]
     else:
         # now drop the key
@@ -219,42 +230,47 @@ def merge_configs(
             Each of the merged configurations can be expressed in a Tuple: config, excluded_key_List, key_indices
     """
     app_merged = {}
-    for app_name in app_indices_configs:
-        indices_configs = app_indices_configs[app_name]
-        cli_file_configs = app_cli_file_configs.get(app_name, None)
+    for app_name, indices_configs in app_indices_configs.items():
+        cli_file_configs = app_cli_file_configs.get(app_name)
         if cli_file_configs:
             merged = {}
             for file, (config, excluded_key_list, key_indices) in indices_configs.items():
-                if len(key_indices) > 0:
-                    cli_configs = cli_file_configs.get(file, None)
+                if key_indices:  # slightly faster than len(key_indices) > 0
+                    cli_configs = cli_file_configs.get(file)
                     if cli_configs:
+                        # Pre-test the APP_SCRIPT_KEY and APP_CONFIG_KEY just once for all keys
+                        script_config_keys = {APP_SCRIPT_KEY, APP_CONFIG_KEY}
                         for key, cli_value in cli_configs.items():
                             cli_value = convert_to_number(cli_value)
                             if key not in key_indices:
                                 # not every client has app_config, app_script
-                                if key not in [APP_SCRIPT_KEY, APP_CONFIG_KEY]:
+                                if key not in script_config_keys:
                                     if key.startswith(".") or key.endswith("."):
                                         raise ValueError(f"invalid key {key} for file {file}")
                                 handle_key_in_path_notation_or_new_key(file, key, cli_value, config, key_indices)
                             else:
                                 if cli_value:
                                     indices = key_indices.get(key)
+                                    # If indices is empty, skip
+                                    if not indices:
+                                        continue
                                     for key_index in indices:
                                         new_value = _cast_type(key_index, cli_value)
                                         key_index.value = new_value
                                         parent_key = key_index.parent_key
-                                        if parent_key and isinstance(parent_key.value, ConfigTree):
-                                            parent_key.value.put(key_index.key, new_value)
+                                        # Avoid expensive isinstance(parent_key.value, ConfigTree) unless necessary
+                                        pv = getattr(parent_key, "value", None)
+                                        if pv is not None and isinstance(pv, ConfigTree):
+                                            pv.put(key_index.key, new_value)
                                 else:
-                                    key_indices.pop(key)
+                                    # Use safe pop to avoid KeyError
+                                    key_indices.pop(key, None)
 
                 merged[file] = (config, excluded_key_list, key_indices)
             app_merged[app_name] = merged
         elif app_name == META_APP_NAME:
-            new_indices_configs = {}
-            for k, v in indices_configs.items():
-                new_indices_configs[k] = v
-            app_merged[app_name] = new_indices_configs
+            # Direct assignment as previously, shallow copy is not helpful for performance
+            app_merged[app_name] = indices_configs
         else:
             app_merged[app_name] = indices_configs
 
