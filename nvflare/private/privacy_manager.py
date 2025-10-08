@@ -75,13 +75,17 @@ class PrivacyManager(object):
         self.components = components
 
         if scopes:
+            name_to_scopes = self.name_to_scopes
+            seen_names = set()
             for s in scopes:
-                if s.name in self.name_to_scopes:
+                if s.name in seen_names:
                     raise ValueError(f"duplicate scopes defined for name '{s.name}'")
-                self.name_to_scopes[s.name] = s
+                seen_names.add(s.name)
+                name_to_scopes[s.name] = s
             if default_scope_name:
-                self.default_scope = self.name_to_scopes.get(default_scope_name)
-                if not self.default_scope:
+                try:
+                    self.default_scope = name_to_scopes[default_scope_name]
+                except KeyError:
                     raise ValueError(f"specified default scope '{default_scope_name}' does not exist")
             self.policy_defined = True
         else:
