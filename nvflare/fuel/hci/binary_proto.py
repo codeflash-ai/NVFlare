@@ -425,8 +425,8 @@ class GenerateDataFromFile(DataGenerator):
     """
 
     def __init__(self, file_name: str):
-        file_stats = os.stat(file_name)
-        self.size = file_stats.st_size
+        # Use os.path.getsize for direct file size lookup, which is faster for most operating systems
+        self.size = os.path.getsize(file_name)
         self.file = open(file_name, "rb")
 
     def data_size(self) -> int:
