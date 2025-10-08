@@ -86,9 +86,10 @@ def _send_request(
 
 
 def parse_overseer_agent_args(overseer_agent_conf: dict, required_args: list) -> dict:
+    args = overseer_agent_conf.get("args", {})
     result = {}
     for k in required_args:
-        value = overseer_agent_conf.get("args", {}).get(k)
+        value = args.get(k)
         if value is None:
             raise Exception(f"overseer agent missing arg '{k}'.")
         result[k] = value
