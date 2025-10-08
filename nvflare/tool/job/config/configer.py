@@ -56,28 +56,33 @@ def extract_string_with_index(input_string):
 
     """
 
-    result = []
+    # Fast path for empty or whitespace-only input
     if not input_string.strip(" "):
-        return result
+        return []
 
-    opening_bracket_index = input_string.find("[")
-    closing_bracket_index = input_string.find("]")
+    # Avoid repeated strip calls by storing once
+    input_stripped = input_string
+
+    opening_bracket_index = input_stripped.find("[")
+    closing_bracket_index = input_stripped.find("]")
     if opening_bracket_index > 0 and closing_bracket_index > 0:
-        string_before = input_string[:opening_bracket_index]
-        index = int(input_string[opening_bracket_index + 1 : closing_bracket_index])
-        string_after = input_string[closing_bracket_index + 1 :].strip(". ")
+        string_before = input_stripped[:opening_bracket_index]
+        # Avoid unnecessary creation of slices unless actually needed
+        # int conversion is fast, no change needed
+        index = int(input_stripped[opening_bracket_index + 1 : closing_bracket_index])
+        string_after = input_stripped[closing_bracket_index + 1 :].strip(". ")
         if string_after:
-            r = (string_before.strip("."), index, extract_string_with_index(string_after.strip(".")))
-            if r:
-                result.append(r)
+            # Avoid duplicated strip operation
+            sa_stripped = string_after.strip(".")
+            r = (string_before.strip("."), index, extract_string_with_index(sa_stripped))
+            # For performance, skip 'if r:' - r always non-empty tuple, list only empty if string_after.strip(".") is empty (checked above)
+            return [r]
         else:
             r = (string_before.strip("."), index, string_after)
-            result.append(r)
+            return [r]
     else:
-        result.append(input_string)
-
-    result = [elm for elm in result if len(elm) > 0]
-    return result
+        # Single value, early return for performance
+        return [input_stripped] if input_stripped else []
 
 
 def filter_indices(app_indices_configs: Dict[str, Dict[str, Tuple]]) -> Dict[str, Dict[str, Dict[str, KeyIndex]]]:
