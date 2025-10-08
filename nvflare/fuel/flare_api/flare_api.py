@@ -699,13 +699,19 @@ class Session(SessionSpec):
 
     @staticmethod
     def _get_string_data(reply: dict) -> str:
-        result = ""
+        # Optimization: use a list to collect substrings for efficient joining
+        result_items = []
         data_items = reply.get(ProtoKey.DATA, [])
+        append = result_items.append
+        ptype = ProtoKey.TYPE
+        pdata = ProtoKey.DATA
+        pstring = ProtoKey.STRING
+
         for it in data_items:
             if isinstance(it, dict):
-                if it.get(ProtoKey.TYPE) == ProtoKey.STRING:
-                    result += it.get(ProtoKey.DATA, "")
-        return result
+                if it.get(ptype) == pstring:
+                    append(it.get(pdata, ""))
+        return "".join(result_items)
 
     @staticmethod
     def _get_dict_data(reply: dict) -> dict:
