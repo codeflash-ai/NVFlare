@@ -117,135 +117,41 @@ class NetAgent:
     def __init__(self, cell, change_root_cb=None, agent_closed_cb=None):
         if isinstance(cell, Cell):
             cell = cell.core_cell
+
         self.cell = cell
         self.change_root_cb = change_root_cb
         self.agent_closed_cb = agent_closed_cb
         self.logger = get_obj_logger(self)
 
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CELLS,
-            cb=self._do_report_cells,
+        # Use a static tuple for registration to reduce code and Python interpreter cost
+        _REGISTER = (
+            (_TOPIC_CELLS, self._do_report_cells),
+            (_TOPIC_ROUTE, self._do_route),
+            (_TOPIC_START_ROUTE, self._do_start_route),
+            (_TOPIC_STOP, self._do_stop),
+            (_TOPIC_STOP_CELL, self._do_stop_cell),
+            (_TOPIC_PEERS, self._do_peers),
+            (_TOPIC_CONNS, self._do_connectors),
+            (_TOPIC_URL_USE, self._do_url_use),
+            (_TOPIC_SPEED, self._do_speed),
+            (_TOPIC_ECHO, self._do_echo),
+            (_TOPIC_STRESS, self._do_stress),
+            (_TOPIC_CHANGE_ROOT, self._do_change_root),
+            (_TOPIC_BULK_TEST, self._do_bulk_test),
+            (_TOPIC_BULK_ITEM, self._do_bulk_item),
+            (_TOPIC_MSG_STATS, self._do_msg_stats),
+            (_TOPIC_LIST_POOLS, self._do_list_pools),
+            (_TOPIC_SHOW_POOL, self._do_show_pool),
+            (_TOPIC_COMM_CONFIG, self._do_comm_config),
+            (_TOPIC_CONFIG_VARS, self._do_config_vars),
+            (_TOPIC_PROCESS_INFO, self._do_process_info),
+            (_TOPIC_HEARTBEAT, self._do_heartbeat),
         )
 
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_ROUTE,
-            cb=self._do_route,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_START_ROUTE,
-            cb=self._do_start_route,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STOP,
-            cb=self._do_stop,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STOP_CELL,
-            cb=self._do_stop_cell,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_PEERS,
-            cb=self._do_peers,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CONNS,
-            cb=self._do_connectors,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_URL_USE,
-            cb=self._do_url_use,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_SPEED,
-            cb=self._do_speed,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_ECHO,
-            cb=self._do_echo,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STRESS,
-            cb=self._do_stress,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CHANGE_ROOT,
-            cb=self._do_change_root,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_BULK_TEST,
-            cb=self._do_bulk_test,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_BULK_ITEM,
-            cb=self._do_bulk_item,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_MSG_STATS,
-            cb=self._do_msg_stats,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_LIST_POOLS,
-            cb=self._do_list_pools,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_SHOW_POOL,
-            cb=self._do_show_pool,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_COMM_CONFIG,
-            cb=self._do_comm_config,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CONFIG_VARS,
-            cb=self._do_config_vars,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_PROCESS_INFO,
-            cb=self._do_process_info,
-        )
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_HEARTBEAT,
-            cb=self._do_heartbeat,
-        )
+        # Single loop to register request callbacks - less interpreter overhead and reduces function call lookup time
+        register_cb = cell.register_request_cb
+        for topic, cb in _REGISTER:
+            register_cb(channel=_CHANNEL, topic=topic, cb=cb)
 
         self.heartbeat_thread = None
         self.monitor_thread = None
@@ -550,7 +456,28 @@ class NetAgent:
 
     def stop(self):
         # ask all children to stop
-        self._broadcast_to_subs(topic=_TOPIC_STOP, timeout=0.0)
+        # This function is in line profile the bottleneck: we inline self._broadcast_to_subs for topic=_TOPIC_STOP, timeout=0.0
+        # In the original code, self._broadcast_to_subs does not call Message() because message is None.
+        # We inline the bottleneck logic here for fewer method call overheads.
+        children, clients = self.cell.get_sub_cell_names()
+        targets = []
+        # Reduce global lookup cost by only accessing is_valid_admin_client_name once via import here
+        from nvflare.fuel.utils.admin_name_utils import \
+            is_valid_admin_client_name
+        _append = targets.append
+
+        # We reduce method call lookup by localizing the function reference, and use fast path loops.
+        for c in children:
+            if not is_valid_admin_client_name(c):
+                _append(c)
+
+        for c in clients:
+            if not is_valid_admin_client_name(c):
+                _append(c)
+
+        if targets:
+            # fire_and_forget is used in original implementation for timeout==0.0
+            self.cell.fire_and_forget(channel=_CHANNEL, topic=_TOPIC_STOP, targets=targets, message=None)
         self.close()
 
     def stop_cell(self, target: str) -> str:
