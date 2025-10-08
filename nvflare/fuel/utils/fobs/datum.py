@@ -37,7 +37,8 @@ class Datum:
             dot: the Object Type of the datum
 
         """
-        self.datum_id = str(uuid.uuid4())
+        datum_id = uuid.uuid4()
+        self.datum_id = str(datum_id)
         self.datum_type = datum_type
         self.dot = dot
         self.value = value
