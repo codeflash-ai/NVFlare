@@ -148,15 +148,24 @@ def convert_to_number(value: str):
     if not value:
         return value
 
-    try:
-        if value.isdigit():
-            return int(value)
-        elif value.replace(".", "").isdigit():
-            return float(value)
+    # Avoid try/except for the most common cases (int and float conversion)
+    # This improves performance by only catching exceptions for the float conversion when needed.
+    if value.isdigit():
+        return int(value)
+
+    v = value
+    if "." in v:
+        # Check for float-like string, ensure only one '.', and all others are digits
+        # E.g., "123.456" passes, ".456" and "123." also pass
+        v_no_dot = v.replace(".", "", 1)
+        if v_no_dot.isdigit():
+            try:
+                return float(v)
+            except Exception:
+                return value
         else:
             return value
-    except Exception:
-        return value
+    return value
 
 
 def get_last_token(input_string):
