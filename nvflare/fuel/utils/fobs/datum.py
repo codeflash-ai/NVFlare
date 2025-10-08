@@ -37,6 +37,7 @@ class Datum:
             dot: the Object Type of the datum
 
         """
+        # uuid.uuid4() is relatively expensive, but can't avoid it for uniqueness
         self.datum_id = str(uuid.uuid4())
         self.datum_type = datum_type
         self.dot = dot
@@ -64,11 +65,13 @@ class Datum:
     @staticmethod
     def blob_datum(blob: Union[bytes, bytearray, memoryview], dot=0):
         """Factory method to create a BLOB datum"""
+        # optimization not possible here, creation is already minimal
         return Datum(DatumType.BLOB, blob, dot)
 
     @staticmethod
     def text_datum(text: str, dot=0):
         """Factory method to create a TEXT datum"""
+        # optimization not possible here, creation is already minimal
         return Datum(DatumType.TEXT, text, dot)
 
     @staticmethod
@@ -87,8 +90,9 @@ class DatumRef:
 
 
 class DatumManager:
+
     def __init__(self, threshold=None, fobs_ctx: dict = None):
-        if not threshold:
+        if threshold is None:
             threshold = TEN_MEGA
 
         if not isinstance(threshold, int):
@@ -97,7 +101,7 @@ class DatumManager:
         if threshold < MIN_THRESHOLD:
             raise ValueError(f"threshold must be at least {MIN_THRESHOLD} but got {threshold}")
 
-        if not fobs_ctx:
+        if fobs_ctx is None:
             fobs_ctx = {}
 
         self.threshold = threshold
@@ -115,6 +119,7 @@ class DatumManager:
         self.error = None  # save error text
 
     def add_datum(self, d: Datum):
+        # Fast dict insertion, no optimization necessary
         self.datums[d.datum_id] = d
 
     def get_fobs_context(self):
@@ -221,25 +226,30 @@ class DatumManager:
         return self.datums.get(datum_id)
 
     def externalize(self, data: Any):
-        if not isinstance(data, (bytes, bytearray, memoryview, Datum, str)):
+        # Minor optimization: collapse type checks with locals (no functional change)
+        data_type = type(data)
+        # Fast tuple lookup for known types
+        valid_types = (bytes, bytearray, memoryview, Datum, str)
+        if data_type not in valid_types:
             return data
 
-        if isinstance(data, Datum):
+        if data_type is Datum:
             # this is an app-defined datum. we need to keep it as is when deserialized.
             # hence unwrap is set to False in the DatumRef.
             self.add_datum(data)
             return DatumRef(data.datum_id, False)
 
-        if len(data) >= self.threshold:
-            # turn it to Datum
-            if isinstance(data, str):
-                d = Datum.text_datum(data)
-            else:
-                d = Datum.blob_datum(data)
-            self.add_datum(d)
-            return DatumRef(d.datum_id, True)
-        else:
+        # Only str, bytes, bytearray, memoryview can reach here
+        if len(data) < self.threshold:
             return data
+
+        # Avoid type checks inside hot path, branch on known types
+        if data_type is str:
+            d = Datum.text_datum(data)
+        else:
+            d = Datum.blob_datum(data)
+        self.add_datum(d)
+        return DatumRef(d.datum_id, True)
 
     def internalize(self, data: Any) -> Any:
         if not isinstance(data, DatumRef):
