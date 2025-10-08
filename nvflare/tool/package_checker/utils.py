@@ -133,9 +133,7 @@ def _get_ca_cert_file_name():
 
 
 def _get_cert_file_name(role: str):
-    if role == NVFlareRole.SERVER:
-        return "server.crt"
-    return "client.crt"
+    return "server.crt" if role == NVFlareRole.SERVER else "client.crt"
 
 
 def _get_prv_key_file_name(role: str):
