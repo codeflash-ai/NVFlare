@@ -122,9 +122,12 @@ def get_required_args_for_overseer_agent(overseer_agent_class: str, role: str) -
 
 
 def _prepare_data(args: dict):
-    data = dict(role=args["role"], project=args["project"])
-    if args["role"] == NVFlareRole.SERVER:
-        data["sp_end_point"] = ":".join([args["name"], args["fl_port"], args["admin_port"]])
+    role = args["role"]
+    project = args["project"]
+    data = {"role": role, "project": project}
+    if role == NVFlareRole.SERVER:
+        # Avoid list construction in join by passing as tuple
+        data["sp_end_point"] = ":".join((args["name"], args["fl_port"], args["admin_port"]))
     return data
 
 
