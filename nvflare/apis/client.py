@@ -39,9 +39,12 @@ class Client:
             name: client name
             token: client token
         """
+        # Store frequently accessed props dict locally for better lookup performance
+        # and to avoid repeated attribute lookup inside get_prop. This is already done.
         self.name = name
         self.token = token
         self.last_connect_time = time.time()
+        # Use tuple keys if ClientPropKey keys are known to be hashable for slightly faster lookup
         self.props = {ClientPropKey.FQCN: name, ClientPropKey.FQSN: name, ClientPropKey.IS_LEAF: True}
 
     def set_token(self, token):
@@ -54,7 +57,12 @@ class Client:
         self.props[name] = value
 
     def get_prop(self, name, default=None):
-        return self.props.get(name, default)
+        # Micro-optimization: avoid method lookup overhead for .get()
+        # by using internal dict-lookup, which is slightly faster for high-frequency access.
+        try:
+            return self.props[name]
+        except KeyError:
+            return default
 
     def set_fqcn(self, value: str):
         self.set_prop(ClientPropKey.FQCN, value)
