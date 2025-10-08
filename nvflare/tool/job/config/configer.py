@@ -82,14 +82,11 @@ def extract_string_with_index(input_string):
 
 def filter_indices(app_indices_configs: Dict[str, Dict[str, Tuple]]) -> Dict[str, Dict[str, Dict[str, KeyIndex]]]:
     app_results = {}
-    for app_name in app_indices_configs:
-        indices_configs = app_indices_configs.get(app_name)
+    for app_name, indices_configs in app_indices_configs.items():
         result = {}
         for file, (config, excluded_key_list, key_indices) in indices_configs.items():
             result[file] = filter_config_name_and_values(excluded_key_list, key_indices)
-
         app_results[app_name] = result
-
     return app_results
 
 
@@ -97,12 +94,15 @@ def filter_config_name_and_values(
     excluded_key_list: List[str], key_indices: Dict[str, List[KeyIndex]]
 ) -> Dict[str, KeyIndex]:
     temp_results = {}
+    # Convert excluded_key_list to set for O(1) "in" checks
+    excluded_keys_set = set(excluded_key_list)
     for key, key_index_list in key_indices.items():
-        for key_index in key_index_list:
-            if key not in excluded_key_list and key_index.value not in excluded_key_list:
-                # duplicated key will be over-written by last one
-                temp_results[key] = key_index
-
+        if key not in excluded_keys_set:
+            for key_index in key_index_list:
+                # Only now check the value, after key passes exclusion
+                if key_index.value not in excluded_keys_set:
+                    # duplicated key will be over-written by last one
+                    temp_results[key] = key_index
     return temp_results
 
 
