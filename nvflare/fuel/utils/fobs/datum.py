@@ -88,7 +88,7 @@ class DatumRef:
 
 class DatumManager:
     def __init__(self, threshold=None, fobs_ctx: dict = None):
-        if not threshold:
+        if threshold is None:
             threshold = TEN_MEGA
 
         if not isinstance(threshold, int):
@@ -97,7 +97,7 @@ class DatumManager:
         if threshold < MIN_THRESHOLD:
             raise ValueError(f"threshold must be at least {MIN_THRESHOLD} but got {threshold}")
 
-        if not fobs_ctx:
+        if fobs_ctx is None:
             fobs_ctx = {}
 
         self.threshold = threshold
@@ -178,13 +178,12 @@ class DatumManager:
 
         """
         # must guarantee that all post_cbs are called!
+        # Optimize: Hoist len() call out and use a while loop termination check
         i = 0
-        while True:
-            # we cannot use a simple for-loop here since a cb could register additional CBs during processing!
-            if i >= len(self.post_cbs):
-                return
-
-            cb, cb_kwargs = self.post_cbs[i]
+        post_cbs = self.post_cbs
+        # Avoid dynamic attribute lookup during loop for self.post_cbs
+        while i < len(post_cbs):
+            cb, cb_kwargs = post_cbs[i]
             i += 1
             try:
                 cb(self, **cb_kwargs)
