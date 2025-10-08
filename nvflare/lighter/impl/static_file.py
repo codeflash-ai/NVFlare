@@ -432,14 +432,14 @@ class StaticFileBuilder(Builder):
             return section
 
         assert isinstance(components, list)
-        for c in components:
+        # Find index and remove directly for efficiency
+        for idx, c in enumerate(components):
             if c["id"] == "error_log_sender":
-                # must remove this component
-                components.remove(c)
+                del components[idx]
                 break
 
         # Must convert to Json string
-        return json.dumps(section_dict, indent=2)
+        return json.dumps(section_dict, indent=None)
 
     @staticmethod
     def _check_host_name_against_server(host_name: str, server: Participant) -> str:
