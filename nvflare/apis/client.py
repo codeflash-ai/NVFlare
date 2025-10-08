@@ -41,7 +41,9 @@ class Client:
         """
         self.name = name
         self.token = token
-        self.last_connect_time = time.time()
+        t = time.time()
+        # Directly assign to reduce hash calculations for ClientPropKey.name
+        self.last_connect_time = t
         self.props = {ClientPropKey.FQCN: name, ClientPropKey.FQSN: name, ClientPropKey.IS_LEAF: True}
 
     def set_token(self, token):
