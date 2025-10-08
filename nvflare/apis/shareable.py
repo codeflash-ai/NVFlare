@@ -146,10 +146,13 @@ class Shareable(dict):
 # some convenience functions
 def make_reply(rc, headers=None) -> Shareable:
     reply = Shareable()
-    reply.set_return_code(rc)
+    # Optimized: set all headers (including rc) at once to minimize dict lookups/calls
     if headers and isinstance(headers, dict):
-        for k, v in headers.items():
-            reply.set_header(k, v)
+        reply_headers = {k: v for k, v in headers.items()}
+        reply_headers[ReservedHeaderKey.RC] = rc
+        reply[ReservedHeaderKey.HEADERS] = reply_headers
+    else:
+        reply.set_return_code(rc)
     return reply
 
 
