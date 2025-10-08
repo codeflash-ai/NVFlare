@@ -83,17 +83,19 @@ class Client:
         Note that the client's token is not included in the result since it is authentication data.
 
         """
-        r = {ClientDictKey.NAME: self.name}
+        name = self.name
+        r = {ClientDictKey.NAME: name}
 
-        fqcn = self.get_fqcn()
-        if fqcn != self.name:
+        props = self.props
+        fqcn = props.get(ClientPropKey.FQCN)
+        if fqcn != name:
             r[ClientDictKey.FQCN] = fqcn
 
-        fqsn = self.get_fqsn()
-        if fqsn != self.name:
+        fqsn = props.get(ClientPropKey.FQSN)
+        if fqsn != name:
             r[ClientDictKey.FQSN] = fqsn
 
-        is_leaf = self.get_is_leaf()
+        is_leaf = props.get(ClientPropKey.IS_LEAF)
         if not is_leaf:
             r[ClientDictKey.IS_LEAF] = False
 
