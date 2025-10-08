@@ -59,10 +59,7 @@ class Message:
         setattr(self, key, value)
 
     def get_prop(self, key: str, default=None):
-        try:
-            return getattr(self, key)
-        except AttributeError:
-            return default
+        return getattr(self, key, default)
 
 
 class MessageReceiver(ABC):
