@@ -425,17 +425,22 @@ class GenerateDataFromFile(DataGenerator):
     """
 
     def __init__(self, file_name: str):
+        # Use local variable for file stat to avoid multiple lookups
         file_stats = os.stat(file_name)
         self.size = file_stats.st_size
+        # Open the file in binary mode for reading; storing fileno can be a minor optimization but not required here
         self.file = open(file_name, "rb")
+        self._closed = False  # Track if file is closed to avoid redundant close ops
 
     def data_size(self) -> int:
         return self.size
 
     def generate(self) -> bytes:
         data = self.file.read(MAX_BLOCK_SIZE)
-        if not data:
+        if not data and not self._closed:
+            # Close only once for efficiency, in case generate is called repeatedly after EOF
             self.file.close()
+            self._closed = True
         return data
 
 
