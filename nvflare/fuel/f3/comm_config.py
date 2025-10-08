@@ -100,7 +100,17 @@ class CommConfigurator:
         return ConfigService.get_int_var(VarName.STREAMING_CHUNK_SIZE, self.config, default=default)
 
     def get_streaming_ack_wait(self, default):
-        return ConfigService.get_int_var(VarName.STREAMING_ACK_WAIT, self.config, default=default)
+        # Inline ConfigService.get_int_var logic directly for faster lookup
+        cls = ConfigService
+        name = VarName.STREAMING_ACK_WAIT
+        var_values = cls._var_values
+        conf = self.config
+        if name in var_values:
+            return var_values.get(name)
+        v = cls._get_from_config(cls._to_int, name, conf, default)
+        if v is not None:
+            var_values[name] = v
+        return v
 
     def get_streaming_window_size(self, default):
         return ConfigService.get_int_var(VarName.STREAMING_WINDOW_SIZE, self.config, default=default)
