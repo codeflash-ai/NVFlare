@@ -29,6 +29,7 @@ class ClientDictKey:
 
 
 class Client:
+
     def __init__(self, name, token) -> None:
         """Init Client.
 
@@ -42,7 +43,11 @@ class Client:
         self.name = name
         self.token = token
         self.last_connect_time = time.time()
-        self.props = {ClientPropKey.FQCN: name, ClientPropKey.FQSN: name, ClientPropKey.IS_LEAF: True}
+        # Avoid redundant lookups for ClientPropKey attributes in dict keys
+        fqcn = ClientPropKey.FQCN
+        fqsn = ClientPropKey.FQSN
+        is_leaf = ClientPropKey.IS_LEAF
+        self.props = {fqcn: name, fqsn: name, is_leaf: True}
 
     def set_token(self, token):
         self.token = token
