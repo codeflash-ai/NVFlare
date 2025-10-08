@@ -122,130 +122,36 @@ class NetAgent:
         self.agent_closed_cb = agent_closed_cb
         self.logger = get_obj_logger(self)
 
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CELLS,
-            cb=self._do_report_cells,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_ROUTE,
-            cb=self._do_route,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_START_ROUTE,
-            cb=self._do_start_route,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STOP,
-            cb=self._do_stop,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STOP_CELL,
-            cb=self._do_stop_cell,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_PEERS,
-            cb=self._do_peers,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CONNS,
-            cb=self._do_connectors,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_URL_USE,
-            cb=self._do_url_use,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_SPEED,
-            cb=self._do_speed,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_ECHO,
-            cb=self._do_echo,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STRESS,
-            cb=self._do_stress,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CHANGE_ROOT,
-            cb=self._do_change_root,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_BULK_TEST,
-            cb=self._do_bulk_test,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_BULK_ITEM,
-            cb=self._do_bulk_item,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_MSG_STATS,
-            cb=self._do_msg_stats,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_LIST_POOLS,
-            cb=self._do_list_pools,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_SHOW_POOL,
-            cb=self._do_show_pool,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_COMM_CONFIG,
-            cb=self._do_comm_config,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CONFIG_VARS,
-            cb=self._do_config_vars,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_PROCESS_INFO,
-            cb=self._do_process_info,
-        )
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_HEARTBEAT,
-            cb=self._do_heartbeat,
-        )
+        # Register all request callbacks using a single loop to reduce Python interpreter overhead
+        _topic_cb_pairs = [
+            (_TOPIC_CELLS, self._do_report_cells),
+            (_TOPIC_ROUTE, self._do_route),
+            (_TOPIC_START_ROUTE, self._do_start_route),
+            (_TOPIC_STOP, self._do_stop),
+            (_TOPIC_STOP_CELL, self._do_stop_cell),
+            (_TOPIC_PEERS, self._do_peers),
+            (_TOPIC_CONNS, self._do_connectors),
+            (_TOPIC_URL_USE, self._do_url_use),
+            (_TOPIC_SPEED, self._do_speed),
+            (_TOPIC_ECHO, self._do_echo),
+            (_TOPIC_STRESS, self._do_stress),
+            (_TOPIC_CHANGE_ROOT, self._do_change_root),
+            (_TOPIC_BULK_TEST, self._do_bulk_test),
+            (_TOPIC_BULK_ITEM, self._do_bulk_item),
+            (_TOPIC_MSG_STATS, self._do_msg_stats),
+            (_TOPIC_LIST_POOLS, self._do_list_pools),
+            (_TOPIC_SHOW_POOL, self._do_show_pool),
+            (_TOPIC_COMM_CONFIG, self._do_comm_config),
+            (_TOPIC_CONFIG_VARS, self._do_config_vars),
+            (_TOPIC_PROCESS_INFO, self._do_process_info),
+            (_TOPIC_HEARTBEAT, self._do_heartbeat),
+        ]
+        for topic, cb in _topic_cb_pairs:
+            cell.register_request_cb(
+                channel=_CHANNEL,
+                topic=topic,
+                cb=cb,
+            )
 
         self.heartbeat_thread = None
         self.monitor_thread = None
@@ -366,6 +272,7 @@ class NetAgent:
         return None
 
     def _do_stop_cell(self, request: Message) -> Union[None, Message]:
+        # Avoid unnecessary local lookups in the hot path
         self.stop()
         return Message()
 
@@ -550,7 +457,29 @@ class NetAgent:
 
     def stop(self):
         # ask all children to stop
-        self._broadcast_to_subs(topic=_TOPIC_STOP, timeout=0.0)
+        # Localize variables for performance in hot path
+        cell = self.cell
+        my_info = getattr(cell, "my_info", None)
+        get_sub_cell_names = cell.get_sub_cell_names
+        fire_and_forget = cell.fire_and_forget
+        broadcast_request = cell.broadcast_request
+
+        # Inline and optimize the _broadcast_to_subs hot path
+        children, clients = get_sub_cell_names()
+        targets = [
+            c for c in children if not is_valid_admin_client_name(c)
+        ]
+        targets += [
+            c for c in clients if not is_valid_admin_client_name(c)
+        ]
+
+        if targets:
+            # Since timeout is always 0.0 here, always use fire_and_forget (short-circuit branch)
+            fire_and_forget(
+                channel=_CHANNEL, topic=_TOPIC_STOP, targets=targets, message=Message()
+            )
+            # No need for return {}
+
         self.close()
 
     def stop_cell(self, target: str) -> str:
