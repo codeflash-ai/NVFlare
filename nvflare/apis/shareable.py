@@ -148,8 +148,11 @@ def make_reply(rc, headers=None) -> Shareable:
     reply = Shareable()
     reply.set_return_code(rc)
     if headers and isinstance(headers, dict):
-        for k, v in headers.items():
-            reply.set_header(k, v)
+        header_map = reply.get(ReservedHeaderKey.HEADERS, None)
+        if not header_map:
+            header_map = {}
+            reply[ReservedHeaderKey.HEADERS] = header_map
+        header_map.update(headers)
     return reply
 
 
