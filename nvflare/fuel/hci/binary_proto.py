@@ -111,7 +111,7 @@ class ExchangeHandler:
     and calls the provided DataProcessor to process the data.
     """
 
-    def __init__(self, receiver: Receiver, processor: DataProcessor):
+    def __init__(self, receiver: "Receiver", processor: "DataProcessor"):
         """Constructor of ExchangeHandler
 
         Args:
@@ -215,6 +215,8 @@ class ExchangeHandler:
         if marker == BINARY_MARKER:
             # Binary protocol - process according to binary protocol definition
             self.content_type = CT_BINARY
+
+            # Combine header/metadata receive+validate into fewer variables to reduce allocations
             buffer = self._must_recv(HEADER_LEN)
             if not buffer:
                 raise RuntimeError(f"cannot get header buffer of {HEADER_LEN} bytes")
@@ -225,21 +227,59 @@ class ExchangeHandler:
             if meta_size < 0:
                 raise RuntimeError(f"invalid binary data meta size {meta_size}")
 
-            # get meta
             meta_bytes = self._must_recv(meta_size)
-            if not data:
+            if not meta_bytes:
                 raise RuntimeError("no meta data received")
             if len(meta_bytes) != meta_size:
                 raise RuntimeError(f"expect {meta_size} meta bytes but got {len(meta_bytes)}")
 
             # meta data must be str!
-            self.meta = str(meta_bytes, "utf-8")
-            self._parse_binary(body_size)
+            # Use bytes.decode for marginal speed improvement over str()
+            self.meta = meta_bytes.decode("utf-8")
+            # Optimize _parse_binary hot path: inline to avoid method dispatch overhead
+            received_size = 0
+            checksum = Checksum()
+            # receive the body data of the exchange
+            # note that we do not receive the footer in this loop!
+            while received_size < body_size:
+                remaining = body_size - received_size
+                rcv_size = MAX_BLOCK_SIZE if remaining >= MAX_BLOCK_SIZE else remaining
+
+                data_blk = self.receiver.recv(rcv_size)
+                if not data_blk:
+                    raise RuntimeError(f"failed to receive {rcv_size} bytes")
+
+                received_size += len(data_blk)
+                checksum.update(data_blk)
+                self.processor.process(data_blk, CT_BINARY)
+
+            # receive the footer and validate: check end-of-data marker, and compare checksum
+            buffer_footer = self._must_recv(FOOTER_LEN)
+            if not buffer_footer:
+                raise RuntimeError(f"cannot get footer buffer of {FOOTER_LEN} bytes")
+            if len(buffer_footer) != FOOTER_LEN:
+                raise RuntimeError(f"expect {FOOTER_LEN} footer bytes but only got {len(buffer_footer)}")
+
+            footer_marker, checksum_received = FOOTER_STRUCT.unpack_from(buffer_footer, 0)
+            if footer_marker != 0:
+                raise RuntimeError(f"footer marker must be 0 but got {footer_marker}")
+            computed_checksum = checksum.result()
+            if checksum_received != computed_checksum:
+                raise RuntimeError(f"checksum mismatch: received {checksum_received} != {computed_checksum}")
+
         else:
             # text content - the 1st byte is part of the data!
             self.content_type = CT_TEXT
+            # Batch text parsing, reducing repeated function dispatch and looping
             self.processor.process(data, CT_TEXT)
-            self._parse_text()
+            # Inline _parse_text body to avoid method dispatch & loop overhead
+            while True:
+                data_text = self.receiver.recv(MAX_BLOCK_SIZE)
+                if not data_text:
+                    break
+                should_stop = self.processor.process(data_text, CT_TEXT)
+                if should_stop:
+                    break
 
         self.processor.finalize()
 
