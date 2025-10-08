@@ -275,10 +275,11 @@ class NetAgent:
                 self.monitor_thread.start()
 
     def stop_subnet(self, monitor: SubnetMonitor):
-        cells_to_stop = []
-        for member_fqcn, member in monitor.members.items():
-            if member.state == member.STATE_ONLINE:
-                cells_to_stop.append(member_fqcn)
+        cells_to_stop = [
+            member_fqcn
+            for member_fqcn, member in monitor.members.items()
+            if member.state == member.STATE_ONLINE
+        ]
         if cells_to_stop:
             return self.cell.broadcast_request(
                 channel=_CHANNEL, topic=_TOPIC_STOP_CELL, request=Message(), targets=cells_to_stop, timeout=1.0
