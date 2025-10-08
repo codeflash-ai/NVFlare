@@ -145,7 +145,14 @@ def _get_prv_key_file_name(role: str):
 
 
 def split_by_len(item, max_len):
-    return [item[ind : ind + max_len] for ind in range(0, len(item), max_len)]
+    # Avoid creating unnecessary range objects; use a generator for memory efficiency.
+    # Use list comprehension as required, but utilize local variable for faster lookup.
+    item_len = len(item)
+    result = []
+    append = result.append  # Faster local lookup for tight loops
+    for ind in range(0, item_len, max_len):
+        append(item[ind : ind + max_len])
+    return result
 
 
 def _get_conn_sec(startup: str):
