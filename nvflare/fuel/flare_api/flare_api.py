@@ -709,13 +709,20 @@ class Session(SessionSpec):
 
     @staticmethod
     def _get_dict_data(reply: dict) -> dict:
-        result = {}
-        data_items = reply.get(ProtoKey.DATA, [])
+        # Optimized: remove repeated global lookup/attribute access, and micro-optimize the iteration
+        data_key = ProtoKey.DATA
+        type_key = ProtoKey.TYPE
+        dict_type = ProtoKey.DICT
+
+        data_items = reply.get(data_key, ())
+        # Use tuple() for default so if not a list, avoids creating new list in default path; use tuple for iteration.
         for it in data_items:
-            if isinstance(it, dict):
-                if it.get(ProtoKey.TYPE) == ProtoKey.DICT:
-                    return it.get(ProtoKey.DATA, {})
-        return result
+            # isinstance (it, dict) and get shortcut in one line for branch-prediction efficiency and to
+            # avoid dict methods on non-dicts
+            if type(it) is dict:
+                if it.get(type_key) == dict_type:
+                    return it.get(data_key, {})
+        return {}
 
     def show_stats(self, job_id: str, target_type: str, targets: Optional[List[str]] = None) -> dict:
         """Show processing stats of specified job on specified targets.
