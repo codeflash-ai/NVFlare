@@ -288,25 +288,29 @@ class StatisticsTaskHandler(TaskHandler):
             return feature_bin_range[0]
 
     def get_number_of_bins(self, feature_name: str, hist_config: dict) -> int:
-        err_msg = (
-            f"feature name = '{feature_name}': "
-            f"missing required '{StC.STATS_BINS}' config in histogram config = {hist_config}"
-        )
+        # Move err_msg construction to only be done if an error is raised to save time and memory
         try:
-            num_of_bins = None
             if feature_name in hist_config:
                 num_of_bins = hist_config[feature_name][StC.STATS_BINS]
+            elif "*" in hist_config:
+                num_of_bins = hist_config["*"][StC.STATS_BINS]
             else:
-                if "*" in hist_config:
-                    default_config = hist_config["*"]
-                    num_of_bins = default_config[StC.STATS_BINS]
+                raise Exception(
+                    f"feature name = '{feature_name}': "
+                    f"missing required '{StC.STATS_BINS}' config in histogram config = {hist_config}"
+                )
             if num_of_bins:
                 return num_of_bins
             else:
-                raise Exception(err_msg)
-
+                raise Exception(
+                    f"feature name = '{feature_name}': "
+                    f"missing required '{StC.STATS_BINS}' config in histogram config = {hist_config}"
+                )
         except KeyError:
-            raise Exception(err_msg)
+            raise Exception(
+                f"feature name = '{feature_name}': "
+                f"missing required '{StC.STATS_BINS}' config in histogram config = {hist_config}"
+            )
 
     def get_bin_range(
         self, feature_name: str, global_min_value: float, global_max_value: float, hist_config: dict
