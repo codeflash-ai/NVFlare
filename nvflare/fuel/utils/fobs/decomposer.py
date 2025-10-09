@@ -261,7 +261,7 @@ class EnumTypeDecomposer(Decomposer):
         return self.data_type
 
     def decompose(self, target: Enum, manager: DatumManager = None) -> Any:
-        return target.name
+        return target._name_
 
     def recompose(self, data: Any, manager: DatumManager = None) -> Enum:
         return self.data_type[data]
