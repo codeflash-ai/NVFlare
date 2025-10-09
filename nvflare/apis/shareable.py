@@ -46,17 +46,11 @@ class Shareable(dict):
 
     def __init__(self, data: dict = None):
         """Init the Shareable."""
-        super().__init__()
-        if data:
-            self.update(data)
+        super().__init__(data or {})
         self[ReservedHeaderKey.HEADERS] = {}
 
     def set_header(self, key: str, value):
-        header = self.get(ReservedHeaderKey.HEADERS, None)
-        if not header:
-            header = {}
-            self[ReservedHeaderKey.HEADERS] = header
-        header[key] = value
+        self[ReservedHeaderKey.HEADERS][key] = value
 
     def get_header(self, key: str, default=None):
         header = self.get(ReservedHeaderKey.HEADERS, None)
