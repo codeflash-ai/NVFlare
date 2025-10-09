@@ -183,9 +183,11 @@ def from_shareable(s: Shareable) -> DXO:
 def from_dict(encoded: dict) -> DXO:
     if not isinstance(encoded, dict):
         raise ValueError(f"encoded value must be dict but got {type(encoded)}")
-    return DXO(
-        data_kind=encoded.get(_KEY_KIND, None), data=encoded.get(_KEY_DATA, None), meta=encoded.get(_KEY_META, None)
-    )
+    # Fetch the keys only once to avoid repeated lookups/calls.
+    kind = encoded.get(_KEY_KIND, None)
+    data = encoded.get(_KEY_DATA, None)
+    meta = encoded.get(_KEY_META, None)
+    return DXO(data_kind=kind, data=data, meta=meta)
 
 
 def from_bytes(data: bytes) -> DXO:
