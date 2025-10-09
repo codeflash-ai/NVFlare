@@ -65,8 +65,10 @@ class CommandContext(SimpleContext):
     def get_command_name(self):
         args = self.get_command_args()
         full_name = args[0]
-        parts = full_name.split(".")
-        return parts[-1]
+        head, sep, tail = full_name.rpartition(".")
+        if sep:
+            return tail
+        return full_name
 
     def set_command_args(self, cmd_args):
         self.set_prop(CommandCtxKey.CMD_ARGS, cmd_args)
