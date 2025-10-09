@@ -141,10 +141,10 @@ class DXO(object):
     def add_filter_history(self, filter_name: Union[str, List[str]]):
         if not filter_name:
             return
-        hist = self.get_meta_prop(MetaKey.FILTER_HISTORY)
-        if not hist:
+        hist = self.meta.get(MetaKey.FILTER_HISTORY)
+        if hist is None:
             hist = []
-            self.set_meta_prop(MetaKey.FILTER_HISTORY, hist)
+            self.meta[MetaKey.FILTER_HISTORY] = hist
         if isinstance(filter_name, str):
             hist.append(filter_name)
         elif isinstance(filter_name, list):
