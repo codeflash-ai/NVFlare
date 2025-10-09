@@ -54,23 +54,16 @@ class DXO(object):
             data: clear-text data
             meta: None or dict for any additional properties
         """
-        if data is None:
-            data = {}
-        if meta is None:
-            meta = {}
-
         self.data_kind = data_kind
-        self.data = data
-        self.meta = meta
+        self.data = data if data is not None else {}
+        self.meta = meta if meta is not None else {}
 
         err = self.validate()
         if err:
             raise ValueError("invalid DXO: {}".format(err))
 
     def get_meta_prop(self, key: str, default=None):
-        if self.meta and isinstance(self.meta, dict):
-            return self.meta.get(key, default)
-        return default
+        return self.meta.get(key, default)
 
     def set_meta_prop(self, key: str, value):
         if self.meta is None:
