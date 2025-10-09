@@ -47,16 +47,24 @@ class DamEncoder:
         self.write_int64(size)
         self.write_int64(self.data_set_id)
 
+        buf_write = self.buffer.write  # Localize for performance
+        _struct_pack_q = struct.pack
+        _struct_pack_d = struct.pack
+
         for entry in self.entries:
             data_type, value = entry
-            self.write_int64(data_type)
-            self.write_int64(len(value))
+            # Combine type/len writes for efficiency
+            buf_write(_struct_pack_q("q", data_type))
+            buf_write(_struct_pack_q("q", len(value)))
 
-            for x in value:
-                if data_type == DATA_TYPE_INT_ARRAY:
-                    self.write_int64(x)
-                else:
-                    self.write_float(x)
+            if data_type == DATA_TYPE_INT_ARRAY:
+                # Use batch struct.pack for int arrays
+                if value:
+                    buf_write(struct.pack(f"{len(value)}q", *value))
+            else:
+                # Use batch struct.pack for float arrays
+                if value:
+                    buf_write(struct.pack(f"{len(value)}d", *value))
 
         return self.buffer.getvalue()
 
