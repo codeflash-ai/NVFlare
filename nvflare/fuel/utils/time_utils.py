@@ -14,6 +14,10 @@
 
 import time
 
+strftime = time.strftime
+
+localtime = time.localtime
+
 
 def time_to_string(t) -> str:
     """Convert time into a formatted string.
@@ -27,4 +31,4 @@ def time_to_string(t) -> str:
     if t is None:
         return "N/A"
 
-    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t))
+    return strftime("%Y-%m-%d %H:%M:%S", localtime(t))
