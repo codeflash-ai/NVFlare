@@ -186,9 +186,9 @@ class FedJob:
         """
         check_str("name", name)
         check_positive_int("min_clients", min_clients)
-        if mandatory_clients:
+        if mandatory_clients is not None:
             check_object_type("mandatory_clients", mandatory_clients, list)
-        if meta_props:
+        if meta_props is not None:
             check_object_type("meta_props", meta_props, dict)
 
         self.name = name
@@ -642,19 +642,17 @@ class FedJob:
         if args_to_check and not args_expected:
             raise ValueError(f"received args {list(args_to_check.keys())}, but no args expected")
 
-        args_info = {}
-        for k, required in args_expected.items():
-            args_info[k] = "required" if required else "optional"
-
         # see whether required args are present
         for k, required in args_expected.items():
             if required and (not args_to_check or k not in args_to_check):
+                args_info = {k: "required" if v else "optional" for k, v in args_expected.items()}
                 raise ValueError(f"Missing required arg '{k}'. " f"Supported args: {args_info}")
 
         # see whether we got unexpected args
         if args_to_check:
             for k in args_to_check.keys():
                 if k not in args_expected:
+                    args_info = {k: "required" if v else "optional" for k, v in args_expected.items()}
                     raise ValueError(f"Received unexpected arg '{k}'. " f"Supported args: {args_info}")
 
 
