@@ -33,13 +33,14 @@ CHECK_SESSION_CMD_NAME = InternalCommands.CHECK_SESSION
 class Session(object):
     def __init__(self, sess_id, user_name, org, role, origin_fqcn):
         """Object keeping track of an admin client session with token and time data."""
+        now = time.time()
         self.sess_id = sess_id
         self.user_name = user_name
         self.user_org = org
         self.user_role = role
         self.origin_fqcn = origin_fqcn
-        self.start_time = time.time()
-        self.last_active_time = time.time()
+        self.start_time = now
+        self.last_active_time = now
 
     def mark_active(self):
         self.last_active_time = time.time()
@@ -67,12 +68,10 @@ class Session(object):
         if len(parts) != 2:
             raise ValueError(f"invalid token {token}: expects 2 parts but got {len(parts)}")
 
-        bds = parts[0]
-        signature = parts[1]
-        ds = b64str_to_str(bds)
+        ds = b64str_to_str(parts[0])
         if id_asserter:
             token_verifier = TokenVerifier(id_asserter.cert)
-            is_valid = token_verifier.verify("", ds, signature)
+            is_valid = token_verifier.verify("", ds, parts[1])
             if not is_valid:
                 return None
 
