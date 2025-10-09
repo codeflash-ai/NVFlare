@@ -62,10 +62,9 @@ class Shareable(dict):
         header = self.get(ReservedHeaderKey.HEADERS, None)
         if not header:
             return default
-        else:
-            if not isinstance(header, dict):
-                raise ValueError("header object must be a dict, but got {}".format(type(header)))
-            return header.get(key, default)
+        if not isinstance(header, dict):
+            raise ValueError("header object must be a dict, but got {}".format(type(header)))
+        return header.get(key, default)
 
     # some convenience methods
     def get_return_code(self, default=ReturnCode.OK):
