@@ -51,6 +51,8 @@ class DockerJobHandle(JobHandleSpec):
         self.container = container
         self.timeout = timeout
         self.logger = logging.getLogger(self.__class__.__name__)
+        # Docker client created once per object, to avoid expensive recreation
+        self._docker_client = None
 
     def terminate(self):
         if self.container:
@@ -70,11 +72,9 @@ class DockerJobHandle(JobHandleSpec):
 
     def _get_container(self):
         try:
-            docker_client = docker.from_env()
-            # Get the container object
+            # Use memoized docker client instead of creating a new one each call
+            docker_client = self._get_docker_client()
             container = docker_client.containers.get(self.container.id)
-            # Get the container state
-            # state = container.attrs['State']
             return container
         except:
             return None
@@ -83,17 +83,31 @@ class DockerJobHandle(JobHandleSpec):
         starting_time = time.time()
         if not isinstance(job_states_to_enter, (list, tuple)):
             job_states_to_enter = [job_states_to_enter]
+        # Convert to tuple for optimized 'in' checks if not already tuple
+        job_states_to_enter_set = set(job_states_to_enter)
+
+        sleep_time = 1
         while True:
             container = self._get_container()
             if container:
-                self.logger.debug(f"container state: {container.status}, job states to enter: {job_states_to_enter}")
-                if container.status in job_states_to_enter:
+                # Avoid string formatting when logger is not enabled for debug
+                if self.logger.isEnabledFor(logging.DEBUG):
+                    self.logger.debug(
+                        "container state: %s, job states to enter: %s", container.status, job_states_to_enter
+                    )
+                if container.status in job_states_to_enter_set:
                     return True
                 elif timeout is not None and time.time() - starting_time > timeout:
                     return False
-                time.sleep(1)
+                time.sleep(sleep_time)
             else:
                 return False
+
+    def _get_docker_client(self):
+        # Lazy initialization and re-use of docker client (thread-safe for reuse in single-threaded, which is common)
+        if self._docker_client is None:
+            self._docker_client = docker.from_env()
+        return self._docker_client
 
 
 class DockerJobLauncher(JobLauncherSpec):
