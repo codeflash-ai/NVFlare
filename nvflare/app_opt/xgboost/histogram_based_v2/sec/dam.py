@@ -95,11 +95,16 @@ class DamDecoder:
             raise RuntimeError("Invalid data type for int array")
 
         num = self.read_int64()
-        result = [0] * num
-        for i in range(num):
-            result[i] = self.read_int64()
-
-        return result
+        # Fast path: bulk extraction of int64s with struct.unpack_from in a single call.
+        # This reduces function calls, pyobject allocations, and struct parsing overheads.
+        if num == 0:
+            return []
+        total_bytes = num * 8
+        # Slicing view preserves buffer and avoids interim copy
+        data = struct.unpack_from(f"{num}q", self.buffer, self.pos)
+        self.pos += total_bytes
+        # Return as list, per signature and original behavior
+        return list(data)
 
     def decode_float_array(self):
         data_type = self.read_int64()
