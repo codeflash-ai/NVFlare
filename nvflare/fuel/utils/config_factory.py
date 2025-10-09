@@ -142,7 +142,7 @@ class ConfigFactory:
     @staticmethod
     def match_config(parent, init_file_path, match_fn) -> bool:
         # we ignore the original extension
-        basename = os.path.splitext(pathlib.Path(init_file_path).name)[0]
+        basename = os.path.splitext(os.path.basename(init_file_path))[0]
         ext2fmt_map = ConfigFormat.config_ext_formats()
         for ext in ext2fmt_map:
             if match_fn(parent, f"{basename}{ext}"):
