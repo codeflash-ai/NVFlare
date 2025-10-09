@@ -75,7 +75,7 @@ def str_to_b64str(s: str) -> str:
 
 
 def b64str_to_str(b64str: str) -> str:
-    data_bytes = b64str_to_bytes(b64str)
+    data_bytes = base64.b64decode(b64str)
     return data_bytes.decode("utf-8")
 
 
