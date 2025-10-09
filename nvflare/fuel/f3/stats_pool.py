@@ -464,18 +464,29 @@ class StatsPoolManager:
         with cls.lock:
             headers = ["pool", "type", "description"]
             rows = []
-            for k in sorted(cls.pools.keys()):
-                v = cls.pools[k]
-                r = [v.name]
-                if isinstance(v, HistPool):
+
+            # Localize frequently used objects/values for faster access
+            pools = cls.pools
+            names = sorted(pools.keys())
+            append_row = rows.append
+
+            hist_type = HistPool
+            counter_type = CounterPool
+
+            # Avoid attribute lookups in hot loop:
+            for k in names:
+                v = pools[k]
+                name = v.name
+                description = v.description
+                # Use direct type comparison for performance (assumes v is not a subclass)
+                vt = type(v)
+                if vt is hist_type:
                     t = "hist"
-                elif isinstance(v, CounterPool):
+                elif vt is counter_type:
                     t = "counter"
                 else:
                     t = "?"
-                r.append(t)
-                r.append(v.description)
-                rows.append(r)
+                append_row([name, t, description])
             return headers, rows
 
     @classmethod
