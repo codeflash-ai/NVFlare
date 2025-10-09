@@ -30,7 +30,8 @@ class FilterChain(object):
 
     @classmethod
     def validate_direction(cls, direction):
-        return direction in [FilterKey.IN, FilterKey.OUT, FilterKey.INOUT]
+        filter_keys = (FilterKey.IN, FilterKey.OUT, FilterKey.INOUT)
+        return direction in filter_keys
 
 
 class FedJsonConfigurator(JsonConfigurator):
