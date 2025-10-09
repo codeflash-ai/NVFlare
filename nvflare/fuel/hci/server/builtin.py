@@ -29,18 +29,27 @@ class BuiltInCmdModule(CommandModule):
         self.reg = reg
 
     def get_spec(self):
-        return CommandModuleSpec(
-            name="",
-            cmd_specs=[
-                CommandSpec(
-                    name="_commands",
-                    description="list server commands",
-                    usage="_commands",
-                    handler_func=self.handle_list_commands,
-                    visible=False,
-                )
-            ],
-        )
+        # Optimization: Create the CommandSpec instance once as an attribute to avoid
+        # reconstructing the object every time get_spec is called.
+        # This is safe since all params are constant except handler_func,
+        # which is always self.handle_list_commands; the CommandModule is not replaced at runtime.
+        # Also, creating the outer CommandModuleSpec once reduces repeated allocations.
+        # The object graph is static with respect to the life of this BuiltInCmdModule instance.
+        # This improves performance for high-frequency calls.
+        if not hasattr(self, "_spec"):
+            self._spec = CommandModuleSpec(
+                name="",
+                cmd_specs=[
+                    CommandSpec(
+                        name="_commands",
+                        description="list server commands",
+                        usage="_commands",
+                        handler_func=self.handle_list_commands,
+                        visible=False,
+                    )
+                ],
+            )
+        return self._spec
 
     def _show_command(self, conn: Connection, cmd_name):
         entries = self.reg.get_command_entries(cmd_name)
