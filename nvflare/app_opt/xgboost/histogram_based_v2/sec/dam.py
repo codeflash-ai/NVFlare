@@ -15,6 +15,8 @@ import struct
 from io import BytesIO
 from typing import List
 
+_int64_unpack = struct.Struct("q").unpack_from
+
 SIGNATURE = "NVDADAM1"  # DAM (Direct Accessible Marshalling) V1
 PREFIX_LEN = 24
 
@@ -119,7 +121,8 @@ class DamDecoder:
         return result
 
     def read_int64(self) -> int:
-        (result,) = struct.unpack_from("q", self.buffer, self.pos)
+        # use pre-cached _int64_unpack for reduced per-call overhead
+        result = _int64_unpack(self.buffer, self.pos)[0]
         self.pos += 8
         return result
 
