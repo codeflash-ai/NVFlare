@@ -15,6 +15,8 @@ import struct
 from io import BytesIO
 from typing import List
 
+_float_unpack = struct.Struct("d").unpack_from
+
 SIGNATURE = "NVDADAM1"  # DAM (Direct Accessible Marshalling) V1
 PREFIX_LEN = 24
 
@@ -124,6 +126,6 @@ class DamDecoder:
         return result
 
     def read_float(self) -> float:
-        (result,) = struct.unpack_from("d", self.buffer, self.pos)
+        (result,) = _float_unpack(self.buffer, self.pos)
         self.pos += 8
         return result
