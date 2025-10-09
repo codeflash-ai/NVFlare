@@ -19,14 +19,20 @@ import numpy as np
 
 from nvflare.app_common.abstract.statistics_spec import Bin, BinRange, DataType
 
+_np_integer = np.integer
+
+_np_floating = np.floating
+
+_np_ndarray = np.ndarray
+
 
 class NpEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, np.integer):
+        if isinstance(obj, _np_integer):
             return int(obj)
-        if isinstance(obj, np.floating):
+        if isinstance(obj, _np_floating):
             return float(obj)
-        if isinstance(obj, np.ndarray):
+        if isinstance(obj, _np_ndarray):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
 
