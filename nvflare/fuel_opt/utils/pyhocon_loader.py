@@ -14,6 +14,8 @@
 
 from typing import Dict, Optional
 
+from pyhocon import ConfigTree
+
 from nvflare.fuel.utils.config import Config, ConfigFormat, ConfigLoader
 
 
@@ -35,28 +37,27 @@ class PyhoconConfig(Config):
             return HOCONConverter.to_hocon(config)
 
     def _convert_conf_item(self, conf_item):
-        from pyhocon import ConfigTree
+        # Avoid repeated import. ConfigTree imported at the module level.
 
-        result = {}
-        if isinstance(conf_item, ConfigTree):
-            if len(conf_item) > 0:
-                for key, item in conf_item.items():
-                    new_key = key.strip('"')  # for dotted keys enclosed with "" to not be interpreted as nested key
-                    new_value = self._convert_conf_item(item)
-                    result[new_key] = new_value
-        elif isinstance(conf_item, list):
-            if len(conf_item) > 0:
-                result = [self._convert_conf_item(item) for item in conf_item]
-            else:
-                result = []
-        elif conf_item is True:
+        # Fast-path for atomic/leaf values and empty lists.
+        if conf_item is True:
             return True
         elif conf_item is False:
             return False
+        elif isinstance(conf_item, list):
+            if conf_item:
+                # Use list comprehension for speed with preallocation
+                return [self._convert_conf_item(item) for item in conf_item]
+            else:
+                return []
+        elif isinstance(conf_item, ConfigTree):
+            if conf_item:
+                # Use dict comprehension for speed and memory efficiency
+                return {key.strip('"'): self._convert_conf_item(item) for key, item in conf_item.items()}
+            else:
+                return {}
         else:
             return conf_item
-
-        return result
 
 
 class PyhoconLoader(ConfigLoader):
