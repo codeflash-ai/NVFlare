@@ -218,44 +218,67 @@ def validate_proto(line: str):
 
     Returns: deserialized JSON document
     """
+
+    # Cache local references for ProtoKey values for faster attribute lookup
+    PK = ProtoKey
+    PK_STRING = PK.STRING
+    PK_SUCCESS = PK.SUCCESS
+    PK_ERROR = PK.ERROR
+    PK_TABLE = PK.TABLE
+    PK_COMMAND = PK.COMMAND
+    PK_TOKEN = PK.TOKEN
+    PK_SHUTDOWN = PK.SHUTDOWN
+    PK_DICT = PK.DICT
+    PK_TYPE = PK.TYPE
+    PK_DATA = PK.DATA
+    PK_ROWS = PK.ROWS
+
     all_types = [
-        ProtoKey.STRING,
-        ProtoKey.SUCCESS,
-        ProtoKey.ERROR,
-        ProtoKey.TABLE,
-        ProtoKey.COMMAND,
-        ProtoKey.TOKEN,
-        ProtoKey.SHUTDOWN,
-        ProtoKey.DICT,
+        PK_STRING,
+        PK_SUCCESS,
+        PK_ERROR,
+        PK_TABLE,
+        PK_COMMAND,
+        PK_TOKEN,
+        PK_SHUTDOWN,
+        PK_DICT,
     ]
-    types_with_data = [
-        ProtoKey.STRING,
-        ProtoKey.SUCCESS,
-        ProtoKey.ERROR,
-        ProtoKey.DICT,
-        ProtoKey.COMMAND,
-        ProtoKey.TOKEN,
-        ProtoKey.SHUTDOWN,
-    ]
+    types_with_data = {
+        PK_STRING,
+        PK_SUCCESS,
+        PK_ERROR,
+        PK_DICT,
+        PK_COMMAND,
+        PK_TOKEN,
+        PK_SHUTDOWN,
+    }
+
     try:
         json_data = json.loads(line)
         assert isinstance(json_data, dict)
-        assert ProtoKey.DATA in json_data
-        data = json_data[ProtoKey.DATA]
+        assert PK_DATA in json_data
+        data = json_data[PK_DATA]
         assert isinstance(data, list)
+
+        # Avoid attribute lookups in tight loops
+        all_types_set = set(all_types)
+
         for item in data:
             assert isinstance(item, dict)
-            assert ProtoKey.TYPE in item
-            it = item[ProtoKey.TYPE]
-            assert it in all_types
+            assert PK_TYPE in item
+            it = item[PK_TYPE]
+            # Use set membership for faster 'in'
+            assert it in all_types_set
 
             if it in types_with_data:
-                item_data = item.get(ProtoKey.DATA, None)
+                item_data = item.get(PK_DATA, None)
                 assert item_data is not None
-                assert isinstance(item_data, str) or isinstance(item_data, dict)
-            elif it == ProtoKey.TABLE:
-                assert ProtoKey.ROWS in item
-                rows = item[ProtoKey.ROWS]
+                # isinstance(item_data, (str, dict)) would be marginally faster but keep the same as original
+                if not (isinstance(item_data, str) or isinstance(item_data, dict)):
+                    assert False
+            elif it == PK_TABLE:
+                assert PK_ROWS in item
+                rows = item[PK_ROWS]
                 assert isinstance(rows, list)
                 for row in rows:
                     assert isinstance(row, list)
