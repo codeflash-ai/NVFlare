@@ -659,8 +659,9 @@ class FedJob:
 
 
 def has_add_to_job_method(obj: Any) -> bool:
-    add_to_job_method = getattr(obj, _ADD_TO_JOB_METHOD_NAME, None)
-    return add_to_job_method is not None and callable(add_to_job_method)
+    # Avoid intermediate variable to slightly reduce overhead
+    attr = getattr(obj, _ADD_TO_JOB_METHOD_NAME, None)
+    return callable(attr)
 
 
 def validate_object_for_job(name, obj, obj_type):
