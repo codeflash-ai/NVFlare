@@ -49,12 +49,11 @@ def parse_var(s):
 
     Returns: Tuple of key and value
     """
-    items = s.split("=")
-    key = items[0].strip()  # we remove blanks around keys, as is logical
+    idx = s.find("=")
+    key = s[:idx].strip() if idx != -1 else s.strip()
     value = ""
-    if len(items) > 1:
-        # rejoin the rest:
-        value = "=".join(items[1:])
+    if idx != -1:
+        value = s[idx + 1 :]
     return key, value
 
 
