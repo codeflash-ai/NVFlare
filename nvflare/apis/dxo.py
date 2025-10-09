@@ -103,8 +103,13 @@ class DXO(object):
             Shareable object.
 
         """
+        # Combine construction + return to minimize locals
         s = Shareable()
-        return self.update_shareable(s)
+        header = {}
+        s[ReservedHeaderKey.HEADERS] = header
+        header[ReservedHeaderKey.CONTENT_TYPE] = "DXO"
+        s[_KEY_DXO] = {_KEY_KIND: self.data_kind, _KEY_DATA: self.data, _KEY_META: self.meta}
+        return s
 
     def to_bytes(self) -> bytes:
         """Serialize the DXO object into bytes.
