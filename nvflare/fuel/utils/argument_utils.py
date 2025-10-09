@@ -24,10 +24,10 @@ def str2bool(value, raise_exc=False):
         return value
 
     if isinstance(value, str):
-        value = value.lower()
-        if value in _true_set:
+        value_l = value.lower()
+        if value_l in _true_set:
             return True
-        if value in _false_set:
+        if value_l in _false_set:
             return False
 
     if isinstance(value, int):
@@ -49,12 +49,13 @@ def parse_var(s):
 
     Returns: Tuple of key and value
     """
-    items = s.split("=")
-    key = items[0].strip()  # we remove blanks around keys, as is logical
-    value = ""
-    if len(items) > 1:
-        # rejoin the rest:
-        value = "=".join(items[1:])
+    idx = s.find("=")
+    if idx == -1:
+        key = s.strip()
+        value = ""
+    else:
+        key = s[:idx].strip()
+        value = s[idx + 1 :]
     return key, value
 
 
@@ -71,18 +72,26 @@ def parse_vars(items):
     if items:
         for item in items:
             key, value = parse_var(item)
-
-            # d[key] = value
-            try:
-                d[key] = int(value)
-            except ValueError:
+            # Try int, then float, then bool, otherwise keep as string
+            if value:  # Skip conversion if value is empty string
+                try:
+                    # int conversion, only if value does not contain '.', 'e', or 'E'
+                    if "." not in value and "e" not in value and "E" not in value:
+                        d[key] = int(value)
+                        continue
+                except ValueError:
+                    pass
                 try:
                     d[key] = float(value)
+                    continue
                 except ValueError:
-                    try:
-                        d[key] = bool(str2bool(str(value), True))
-                    except ValueError:
-                        d[key] = value
+                    pass
+                try:
+                    d[key] = bool(str2bool(value, True))
+                except ValueError:
+                    d[key] = value
+            else:
+                d[key] = value
     return d
 
 
