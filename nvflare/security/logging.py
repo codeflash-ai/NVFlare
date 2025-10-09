@@ -38,7 +38,11 @@ def is_secure() -> bool:
 
 
 class _Frame(object):
-    def __init__(self, line_text):
+    def __init__(self, line_text: str):
+        self.line_text = line_text
+        self.count = 1
+
+    def __init__(self, line_text: str):
         self.line_text = line_text
         self.count = 1
 
@@ -54,20 +58,23 @@ def _format_exc_securely() -> str:
     exc_type, exc_obj, tb = sys.exc_info()
     result = ["Traceback (most recent call last):"]
     frames = []
+    last_line_text = None
     last_frame = None
 
     # traceback (tb) stack is a linked list of frames
     while tb:
-        file_name = tb.tb_frame.f_code.co_filename
-        func_name = tb.tb_frame.f_code.co_name
+        frame = tb.tb_frame
+        code = frame.f_code
+        file_name = code.co_filename
+        func_name = code.co_name
         line = tb.tb_lineno
         line_text = f'File "{file_name}", line {line}, in {func_name}'
 
-        if not last_frame or last_frame.line_text != line_text:
+        if last_line_text != line_text:
             last_frame = _Frame(line_text)
             frames.append(last_frame)
+            last_line_text = line_text
         else:
-            # same text as last frame
             last_frame.count += 1
         tb = tb.tb_next
 
