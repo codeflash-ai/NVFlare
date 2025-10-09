@@ -67,8 +67,10 @@ class PortManager:
 
     @classmethod
     def get_port(cls):
-        cls.last_port_number += 1
-        return cls.last_port_number
+        # Use local variable to avoid repeated attribute access
+        num = cls.last_port_number + 1
+        cls.last_port_number = num
+        return num
 
 
 class _Node:
