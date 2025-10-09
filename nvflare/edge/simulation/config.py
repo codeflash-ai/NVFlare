@@ -22,16 +22,30 @@ from typing import Any, Type
 from nvflare.edge.simulation.device_task_processor import DeviceTaskProcessor
 from nvflare.fuel.utils.validation_utils import check_positive_int, check_positive_number, check_str
 
+_module_cache = {}
+
+_class_cache = {}
+
 VAR_PATTERN = re.compile(r"\{(.*?)}")
 
 
 def load_class(class_path) -> Type:
-
     try:
         if "." in class_path:
+            cls = _class_cache.get(class_path)
+            if cls is not None:
+                return cls
+
             module_name, class_name = class_path.rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            return getattr(module, class_name)
+
+            module = _module_cache.get(module_name)
+            if module is None:
+                module = importlib.import_module(module_name)
+                _module_cache[module_name] = module
+
+            cls = getattr(module, class_name)
+            _class_cache[class_path] = cls
+            return cls
         else:
             return getattr(builtins, class_path)
     except Exception as ex:
