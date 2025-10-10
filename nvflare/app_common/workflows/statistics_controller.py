@@ -460,28 +460,33 @@ class StatisticsController(Controller):
         # make sure the execution order of the statistics calculation
 
         targets = []
-        if statistic_configs:
-            for metric in statistic_configs:
-                # if target statistic has histogram, we are not in 2nd statistic task
-                # we only need to estimate the global min/max if we have histogram statistic,
-                # If the user provided the global min/max for a specified feature, then we do nothing
-                # if the user did not provide the global min/max for the feature, then we need to ask
-                # client to provide the local estimated min/max for that feature.
-                # then we used the local estimate min/max to estimate global min/max.
-                # to do that, we calculate the local min/max in 1st statistic task.
-                # in all cases, we will still send the STATS_MIN/MAX tasks, but client executor may or may not
-                # delegate to stats generator to calculate the local min/max depends on if the global bin ranges
-                # are specified. to do this, we send over the histogram configuration when calculate the local min/max
-                if metric == StC.STATS_HISTOGRAM and metric not in ordered_statistics:
-                    targets.append(StatisticConfig(StC.STATS_MIN, statistic_configs[StC.STATS_HISTOGRAM]))
-                    targets.append(StatisticConfig(StC.STATS_MAX, statistic_configs[StC.STATS_HISTOGRAM]))
+        if not statistic_configs:
+            return targets
 
-                if metric == StC.STATS_STDDEV and metric in ordered_statistics:
-                    targets.append(StatisticConfig(StC.STATS_VAR, {}))
+        # Optimization: use set for quick rm == metric check below; avoids nested loop cost if large
+        ordered_statistics_set = set(ordered_statistics)
 
-                for rm in ordered_statistics:
-                    if rm == metric:
-                        targets.append(StatisticConfig(metric, statistic_configs[metric]))
+        for metric in statistic_configs:
+            # if target statistic has histogram, we are not in 2nd statistic task
+            # we only need to estimate the global min/max if we have histogram statistic,
+            # If the user provided the global min/max for a specified feature, then we do nothing
+            # if the user did not provide the global min/max for the feature, then we need to ask
+            # client to provide the local estimated min/max for that feature.
+            # then we used the local estimate min/max to estimate global min/max.
+            # to do that, we calculate the local min/max in 1st statistic task.
+            # in all cases, we will still send the STATS_MIN/MAX tasks, but client executor may or may not
+            # delegate to stats generator to calculate the local min/max depends on if the global bin ranges
+            # are specified. to do this, we send over the histogram configuration when calculate the local min/max
+            if metric == StC.STATS_HISTOGRAM and metric not in ordered_statistics_set:
+                targets.append(StatisticConfig(StC.STATS_MIN, statistic_configs[StC.STATS_HISTOGRAM]))
+                targets.append(StatisticConfig(StC.STATS_MAX, statistic_configs[StC.STATS_HISTOGRAM]))
+
+            if metric == StC.STATS_STDDEV and metric in ordered_statistics_set:
+                targets.append(StatisticConfig(StC.STATS_VAR, {}))
+
+            # Optimization: avoid inner for-loop; for each metric, only add if metric in ordered_statistics
+            if metric in ordered_statistics_set:
+                targets.append(StatisticConfig(metric, statistic_configs[metric]))
         return targets
 
     def _prepare_inputs(self, statistic_task: str) -> Shareable:
