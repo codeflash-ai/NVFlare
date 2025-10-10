@@ -48,11 +48,14 @@ class ProcessorDataConverter(DataConverter):
             raise RuntimeError(f"Data is not for GH Pairs: {decoder.get_data_set_id()}")
 
         float_array = decoder.decode_float_array()
-        result = []
-        self.num_samples = int(len(float_array) / 2)
+        n = len(float_array)
+        self.num_samples = int(n / 2)
 
-        for i in range(self.num_samples):
-            result.append((self.float_to_int(float_array[2 * i]), self.float_to_int(float_array[2 * i + 1])))
+        float_to_int = self.float_to_int  # Local lookup for performance
+        # List comprehension for faster tuple construction
+        result = [
+            (float_to_int(float_array[2 * i]), float_to_int(float_array[2 * i + 1])) for i in range(self.num_samples)
+        ]
 
         return result
 
