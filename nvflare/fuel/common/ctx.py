@@ -42,7 +42,7 @@ class BaseContext(SimpleContext):
         """A SimpleContext with threading locks.
 
         This context class enables thread-safe set/get on top of SimpleContext."""
-        SimpleContext.__init__(self)
+        super().__init__()
         self._update_lock = threading.Lock()
 
     def set_prop(self, key, value):
@@ -62,7 +62,7 @@ class BaseContext(SimpleContext):
 
     def get_prop(self, key, default=None):
         with self._update_lock:
-            return SimpleContext.get_prop(self, key, default)
+            return super().get_prop(key, default)
 
     def clear_props(self):
         with self._update_lock:
