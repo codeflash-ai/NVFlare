@@ -95,10 +95,12 @@ class DamDecoder:
             raise RuntimeError("Invalid data type for int array")
 
         num = self.read_int64()
-        result = [0] * num
-        for i in range(num):
-            result[i] = self.read_int64()
+        if num == 0:
+            return []
 
+        arr_bytes = num * 8
+        result = list(struct.unpack_from(f"{num}q", self.buffer, self.pos))
+        self.pos += arr_bytes
         return result
 
     def decode_float_array(self):
