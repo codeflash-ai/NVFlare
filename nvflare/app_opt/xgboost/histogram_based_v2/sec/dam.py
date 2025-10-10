@@ -43,20 +43,19 @@ class DamEncoder:
             size += 16
             size += len(entry[1]) * 8
 
-        self.write_str(SIGNATURE)
-        self.write_int64(size)
-        self.write_int64(self.data_set_id)
+        # Write signature as bytes, not per-char, for efficiency
+        self.buffer.write(SIGNATURE.encode("utf-8"))
+        self.buffer.write(struct.pack("q", size))
+        self.buffer.write(struct.pack("q", self.data_set_id))
 
-        for entry in self.entries:
-            data_type, value = entry
-            self.write_int64(data_type)
-            self.write_int64(len(value))
-
-            for x in value:
-                if data_type == DATA_TYPE_INT_ARRAY:
-                    self.write_int64(x)
-                else:
-                    self.write_float(x)
+        for data_type, value in self.entries:
+            self.buffer.write(struct.pack("q", data_type))
+            self.buffer.write(struct.pack("q", len(value)))
+            # Bulk pack and write for float and int arrays
+            if data_type == DATA_TYPE_INT_ARRAY:
+                self.buffer.write(struct.pack(f"{len(value)}q", *value))
+            else:
+                self.buffer.write(struct.pack(f"{len(value)}d", *value))
 
         return self.buffer.getvalue()
 
