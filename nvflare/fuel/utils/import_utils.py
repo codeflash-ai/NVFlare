@@ -43,7 +43,7 @@ OPS = ["==", ">=", ">", "<", "<="]
 
 
 def get_module_version(this_pkg):
-    return this_pkg.__version__.split(".")[:2]
+    return this_pkg.__version__.split(".", 2)[:2]
 
 
 def get_module_version_str(the_module):
