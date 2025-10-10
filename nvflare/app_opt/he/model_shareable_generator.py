@@ -38,19 +38,19 @@ def add_to_global_weights(new_val, base_weights, v_name):
     try:
         global_var = base_weights[v_name]
 
-        if isinstance(new_val, np.ndarray):
+        if isinstance(new_val, np.ndarray) and new_val.ndim > 1:
             new_val = new_val.ravel()
 
         if isinstance(global_var, np.ndarray):
-            global_var = global_var.ravel()
-            n_vars_total = np.size(global_var)
+            if global_var.ndim > 1:
+                global_var = global_var.ravel()
+            n_vars_total = global_var.size
+            updated_vars = np.add(global_var, new_val)
         elif isinstance(global_var, ts.CKKSVector):
             n_vars_total = global_var.size()
+            updated_vars = new_val + global_var
         else:
             raise ValueError(f"global_var has type {type(global_var)} which is not supported.")
-
-        # update the global model
-        updated_vars = new_val + global_var
 
     except Exception as e:
         raise ValueError(f"add_to_global_weights Exception: {secure_format_exception(e)}") from e
