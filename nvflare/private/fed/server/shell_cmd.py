@@ -38,8 +38,11 @@ from nvflare.private.fed.server.message_send import ClientReply
 from nvflare.private.fed.server.server_engine_internal_spec import ServerEngineInternalSpec
 from nvflare.private.fed.utils.fed_utils import execute_command_directly
 
+__slots__ = ()
+
 
 class _CommandExecutor(object):
+
     def __init__(self, cmd_name: str, validator: ShellCommandValidator):
         self.cmd_name = cmd_name
         self.validator = validator
