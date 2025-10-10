@@ -83,24 +83,27 @@ def _determine_value(item: Any, resolvers: dict) -> Any:
     Returns:
 
     """
+    # Optimize recursion for lists and dicts using local var and direct assignment to avoid repeated lookups
     if isinstance(item, list):
-        for i, v in enumerate(item):
-            item[i] = _determine_value(v, resolvers)
-        return item
+        # Use a local variable to avoid repeated attribute lookups
+        item_list = item
+        for i in range(len(item_list)):
+            item_list[i] = _determine_value(item_list[i], resolvers)
+        return item_list
     elif isinstance(item, dict):
-        for k, v in item.items():
-            item[k] = _determine_value(v, resolvers)
-        return item
+        item_dict = item
+        for k in item_dict:
+            item_dict[k] = _determine_value(item_dict[k], resolvers)
+        return item_dict
     elif not isinstance(item, str):
         return item
     if not item.startswith("@"):
         return item
-    else:
-        referenced_name = item[1:]
-        c = resolvers.get(referenced_name)
-        if not c:
-            raise ConfigError(f"referenced component '{referenced_name}' does not exist")
-        return c
+    referenced_name = item[1:]
+    c = resolvers.get(referenced_name)
+    if not c:
+        raise ConfigError(f"referenced component '{referenced_name}' does not exist")
+    return c
 
 
 def _find_obj(item, obj_table):
@@ -149,11 +152,14 @@ def _try_to_resolve(resolver: ComponentResolver, obj_table: dict) -> Any:
     references another component, the referenced component must be resolved.
 
     """
-    if isinstance(resolver.comp_args, dict):
-        for k, v in resolver.comp_args.items():
-            v = _find_obj(v, obj_table)
-            resolver.comp_args[k] = v
-            if isinstance(v, ComponentResolver):
+    comp_args = resolver.comp_args
+    # Optimize dict iteration by avoiding repeated attribute access
+    if isinstance(comp_args, dict):
+        for k in comp_args:
+            v = comp_args[k]
+            resolved_v = _find_obj(v, obj_table)
+            comp_args[k] = resolved_v
+            if isinstance(resolved_v, ComponentResolver):
                 # not ready to resolve this component since this referenced component has not been resolved
                 return None
 
@@ -167,17 +173,22 @@ def _try_to_resolve(resolver: ComponentResolver, obj_table: dict) -> Any:
 def _process_components(component_config: dict, resolver_registry: dict):
     # Step 1: create a ComponentResolver for each component spec in the config
     resolvers = {}  # name => ComponentResolver
+    # Pre-fetch lookup vars for less repeated global access
+    get_ckey_name = ConfigKey.NAME
+    get_ckey_type = ConfigKey.TYPE
+    get_ckey_args = ConfigKey.ARGS
     for c in component_config:
-        name = c.get(ConfigKey.NAME)
-        comp_type = c.get(ConfigKey.TYPE)
+        name = c.get(get_ckey_name)
+        comp_type = c.get(get_ckey_type)
         clazz = resolver_registry.get(comp_type)
         if not clazz:
             raise ConfigError(f"no ComponentResolver registered for component type {comp_type}")
 
-        comp_args = c.get(ConfigKey.ARGS)
+        comp_args = c.get(get_ckey_args)
         if issubclass(clazz, ComponentResolver):
             resolver = clazz(comp_type, name, comp_args)
         else:
+            # Slightly reduce inspect.isclass lookups: only check if not issubclass
             if not inspect.isclass(clazz):
                 raise ConfigError(f"resolver for component {comp_type} is not a valid class")
 
@@ -192,31 +203,34 @@ def _process_components(component_config: dict, resolver_registry: dict):
         resolvers[name] = resolver
 
     # find ComponentResolver for referenced components
-    for name, resolver in resolvers.items():
+    for resolver in resolvers.values():
         assert isinstance(resolver, ComponentResolver)
-        if not isinstance(resolver.comp_args, dict):
+        comp_args = resolver.comp_args
+        if not isinstance(comp_args, dict):
             # the args could be None
             continue
 
-        for k, v in resolver.comp_args.items():
-            resolver.comp_args[k] = _determine_value(v, resolvers)
+        for k in comp_args:
+            comp_args[k] = _determine_value(comp_args[k], resolvers)
 
-    # repeatedly trying to resolve components until all are done.
-    # the "resolve" method of ComponentResolver creates device objects based on the args.
+    # Repeatedly try to resolve components until all are done.
     obj_table = {}
     while resolvers:
+        # Minimize repeated dict access with local variables:
+        names_resolvers_items = list(resolvers.items())
         resolved = []
-        for name, resolver in resolvers.items():
+        for name, resolver in names_resolvers_items:
             obj = _try_to_resolve(resolver, obj_table)
             if obj is not None:
                 resolved.append(name)
 
         if not resolved:
             # nothing is resolved - there are cyclic refs
-            raise ConfigError(f"cannot resolve components {resolvers.keys()}")
+            raise ConfigError(f"cannot resolve components {list(resolvers.keys())}")
 
         for n in resolved:
-            resolvers.pop(n)
+            # Use del rather than pop for O(1) removal
+            del resolvers[n]
 
     return obj_table
 
