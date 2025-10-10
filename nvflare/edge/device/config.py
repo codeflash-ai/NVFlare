@@ -57,11 +57,19 @@ class ComponentResolver:
     def __init__(self, comp_type, name, args, obj_class=None):
         self.comp_type = comp_type
         self.comp_name = name
-
-        if not args:
-            args = {}
-        self.comp_args = args
+        # Avoid creating a new empty dict unless necessary.
+        self.comp_args = args if args else {}
         self.obj_class = obj_class
+        # Pre-bind the constructor for faster resolution if possible
+        # Only bind if no comp_args -- otherwise, as they might change, skip caching closure
+        if self.obj_class is not None and not self.comp_args:
+            try:
+                # Pre-instantiate zero-argument case for speed
+                self._zero_arg_instance = self.obj_class()
+            except Exception:
+                self._zero_arg_instance = None
+        else:
+            self._zero_arg_instance = None
 
     def resolve(self) -> Any:
         """Resolve the component spec and create device-native object.
@@ -69,6 +77,10 @@ class ComponentResolver:
         Returns: a device-native object or None if failed.
 
         """
+        # Fast path for zero-arg instance
+        if self._zero_arg_instance is not None and not self.comp_args:
+            return self._zero_arg_instance
+        # Standard instantiation
         return self.obj_class(**self.comp_args)
 
 
