@@ -36,6 +36,8 @@ from nvflare.utils.cli_utils import (
     save_config,
 )
 
+_CMD_PREFLIGHT_CACHE = {}
+
 CMD_POC = "poc"
 CMD_PROVISION = "provision"
 CMD_PREFLIGHT_CHECK = "preflight_check"
@@ -63,8 +65,13 @@ def def_dashboard_parser(sub_cmd):
 
 def def_preflight_check_parser(sub_cmd):
     cmd = CMD_PREFLIGHT_CHECK
+    sid = id(sub_cmd)
+    cache = _CMD_PREFLIGHT_CACHE.setdefault(sid, {})
+    if cmd in cache:
+        return {cmd: cache[cmd]}
     checker_parser = sub_cmd.add_parser(cmd)
     define_preflight_check_parser(checker_parser)
+    cache[cmd] = checker_parser
     return {cmd: checker_parser}
 
 
