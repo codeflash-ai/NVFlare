@@ -28,6 +28,10 @@ from nvflare.lighter.utils import load_private_key_file, sign_folders
 from .api_spec import CommandContext, HCIRequester
 from .api_status import APIStatus
 
+_SUCCESS_RESULT = {ProtoKey.STATUS: APIStatus.SUCCESS, ProtoKey.DETAILS: "OK"}
+
+_ERROR_RESULT = {ProtoKey.STATUS: APIStatus.ERROR_RUNTIME, ProtoKey.DETAILS: "error receiving file"}
+
 
 class _FileSender(HCIRequester):
     def __init__(self, file_name: str):
@@ -49,11 +53,9 @@ class _FileReceiver(HCIRequester):
     def send_request(self, api, conn, cmd_ctx):
         self.num_bytes_received = api.download_file(self.source_fqcn, self.ref_id, self.file_name)
         if self.num_bytes_received is not None:
-            cmd_ctx.set_command_result({ProtoKey.STATUS: APIStatus.SUCCESS, ProtoKey.DETAILS: "OK"})
+            cmd_ctx.set_command_result(_SUCCESS_RESULT)
         else:
-            cmd_ctx.set_command_result(
-                {ProtoKey.STATUS: APIStatus.ERROR_RUNTIME, ProtoKey.DETAILS: "error receiving file"}
-            )
+            cmd_ctx.set_command_result(_ERROR_RESULT)
         return None
 
 
