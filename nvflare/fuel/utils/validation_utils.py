@@ -14,6 +14,8 @@
 
 import random
 
+__slots__ = ()
+
 SYMBOL_ALL = "@all"
 SYMBOL_NONE = "@none"
 
@@ -80,7 +82,9 @@ def check_non_negative_number(name, value):
 
 
 def check_str(name, value):
-    check_object_type(name, value, str)
+    # Inlined to avoid one function call in the frequent hot path
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be {str}, but got {type(value)}.")
 
 
 def check_non_empty_str(name, value):
