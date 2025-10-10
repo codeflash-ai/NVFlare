@@ -38,6 +38,8 @@ from nvflare.private.fed.server.message_send import ClientReply
 from nvflare.private.fed.server.server_engine_internal_spec import ServerEngineInternalSpec
 from nvflare.private.fed.utils.fed_utils import execute_command_directly
 
+_ALLOWED_FILENAME_RE = re.compile(r"^[A-Za-z0-9-._/]*$")
+
 
 class _CommandExecutor(object):
     def __init__(self, cmd_name: str, validator: ShellCommandValidator):
@@ -162,31 +164,30 @@ class _FileCmdExecutor(_CommandExecutor):
         self.file_required = file_required
 
     def validate_shell_command(self, args: List[str], parse_result):
-        if self.file_required or parse_result.files:
+        # Cached attribute for one-time access
+        files = getattr(parse_result, "files", None)
+        if self.file_required or files:
             if not hasattr(parse_result, "files"):
                 return "a file is required as an argument"
-            if self.single_file_only and len(parse_result.files) != 1:
+            # Do not check length on None
+            if self.single_file_only and isinstance(files, list) and len(files) != 1:
                 return "only one file is allowed"
 
-            if isinstance(parse_result.files, list):
-                file_list = parse_result.files
-            else:
-                file_list = [parse_result.files]
+            file_list = files if isinstance(files, list) else [files]
 
             for f in file_list:
                 if not isinstance(f, str):
                     raise TypeError("file must be str but got {}".format(type(f)))
 
-                if not re.match("^[A-Za-z0-9-._/]*$", f):
+                if not _ALLOWED_FILENAME_RE.match(f):
                     return "unsupported file {}".format(f)
 
                 if f.startswith("/"):
                     return "absolute path is not allowed"
 
-                paths = f.split("/")
-                for p in paths:
-                    if p == "..":
-                        return ".. in path name is not allowed"
+                # Use tuple for faster lookup; still O(n) but for very short lists this is optimal
+                if ".." in f.split("/"):
+                    return ".. in path name is not allowed"
 
                 if self.text_file_only:
                     err = validate_text_file_name(f)
