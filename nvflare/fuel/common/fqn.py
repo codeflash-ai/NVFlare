@@ -14,6 +14,8 @@
 import re
 from typing import List
 
+_SEPARATOR = "."
+
 
 class FQN:
 
@@ -30,7 +32,7 @@ class FQN:
 
     @staticmethod
     def join(path: List[str]) -> str:
-        return FQN.SEPARATOR.join(path)
+        return _SEPARATOR.join(path)
 
     @staticmethod
     def validate(fqn) -> str:
