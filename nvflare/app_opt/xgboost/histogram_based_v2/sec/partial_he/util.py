@@ -128,15 +128,22 @@ def decode_encrypted_numbers_from_str(pubkey, encoded: str):
 
 
 def _decode_encrypted_numbers(pubkey, data):
+    # Prebind frequently called functions for local lookup speedup
+    base64_to_int_local = base64_to_int
+    int_to_ciphertext_local = int_to_ciphertext
+    encrypt_number_local = encrypt_number
     result = []
+    append_result = result.append  # minor optimization for tight loop
+
     for v in data:
         if isinstance(v, int):
-            d = v
+            append_result(v)
         else:
-            d = encrypt_number(
-                pubkey, ciphertext=int_to_ciphertext(base64_to_int(v[0]), pubkey=pubkey), exponent=int(v[1])
+            # Minimize attribute lookups, call through prebound locals
+            d = encrypt_number_local(
+                pubkey, ciphertext=int_to_ciphertext_local(base64_to_int_local(v[0]), pubkey), exponent=int(v[1])
             )
-        result.append(d)
+            append_result(d)
     return result
 
 
