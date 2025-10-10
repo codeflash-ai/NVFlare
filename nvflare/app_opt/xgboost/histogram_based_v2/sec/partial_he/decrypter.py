@@ -47,11 +47,8 @@ class Decrypter:
 
 def _do_decrypt(item):
     private_key, numbers = item
-    ev = [None] * len(numbers)
-    for i, v in enumerate(numbers):
-        if isinstance(v, int):
-            d = v
-        else:
-            d = private_key.decrypt(v)
-        ev[i] = d
-    return ev
+    # Localize the decrypt method and int to minimize attribute and global lookups
+    decrypt = private_key.decrypt
+    int_type = int
+    # List comprehension for better memory access and faster loop handling
+    return [v if isinstance(v, int_type) else decrypt(v) for v in numbers]
