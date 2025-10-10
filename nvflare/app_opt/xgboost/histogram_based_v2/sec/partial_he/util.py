@@ -90,7 +90,7 @@ def combine(g, h):
 
 def split(d):
     combined_g = d / SCALE_FACTOR
-    g = int(round(combined_g, 0))
+    g = round(combined_g)
     h = d - g * SCALE_FACTOR
     return g, h
 
