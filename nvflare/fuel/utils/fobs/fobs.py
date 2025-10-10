@@ -392,7 +392,7 @@ def deserialize_stream(stream: BinaryIO, manager: DatumManager = None, **kwargs)
 
 
 def get_dot_handler(dot: int):
-    global _dot_handlers
+    # The global declaration is not needed for read-only access.
     return _dot_handlers.get(dot)
 
 
