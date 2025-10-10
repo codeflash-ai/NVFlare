@@ -107,10 +107,11 @@ class DamDecoder:
             raise RuntimeError("Invalid data type for float array")
 
         num = self.read_int64()
-        result = [0.0] * num
-        for i in range(num):
-            result[i] = self.read_float()
-
+        # Optimize float array reading using struct.unpack_from for direct bulk unpacking
+        start = self.pos
+        end = start + num * 8
+        result = list(struct.unpack_from(f"{num}d", self.buffer, start))
+        self.pos = end
         return result
 
     def read_string(self, length: int) -> str:
