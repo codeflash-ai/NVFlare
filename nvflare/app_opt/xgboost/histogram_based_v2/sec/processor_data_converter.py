@@ -57,6 +57,8 @@ class ProcessorDataConverter(DataConverter):
         return result
 
     def decode_aggregation_context(self, buffer: bytes, fl_ctx: FLContext) -> AggregationContext:
+        self.features = []  # Reset per call
+
         decoder = DamDecoder(buffer)
         if not decoder.is_valid():
             return None
@@ -68,14 +70,36 @@ class ProcessorDataConverter(DataConverter):
             num = len(self.feature_list)
             slots = decoder.decode_int_array()
             num_samples = int(len(slots) / num)
-            for i in range(num):
-                bin_assignment = []
-                for row_id in range(num_samples):
-                    _, bin_num = self.slot_to_bin(cuts, slots[row_id * num + i])
-                    bin_assignment.append(bin_num)
 
-                bin_size = self.get_bin_size(cuts, self.feature_list[i])
-                feature_ctx = FeatureContext(self.feature_list[i], bin_assignment, bin_size)
+            # Precompute slot->(feature_idx, bin_num) mapping for all slot possible values
+            slot_bin_map = {}
+            cuts_len = len(cuts)
+            cuts_end = cuts[-1]
+            for i in range(num):
+                start = cuts[self.feature_list[i]]
+                end = cuts[self.feature_list[i] + 1]
+                for b in range(start, end):
+                    slot_bin_map[(b, i)] = b - start
+
+            # Assign bin_num using the precomputed map rather than per-loop search
+            for i in range(num):
+                feature_id = self.feature_list[i]
+                start = cuts[feature_id]
+                end = cuts[feature_id + 1]
+                bin_assignment = [
+                    (
+                        slots[row_id * num + i] - start
+                        if start <= slots[row_id * num + i] < end
+                        else (
+                            -1
+                            if slots[row_id * num + i] < 0
+                            else (self._raise_out_of_slot(slots[row_id * num + i], cuts_end))
+                        )
+                    )
+                    for row_id in range(num_samples)
+                ]
+                bin_size = self.get_bin_size(cuts, feature_id)
+                feature_ctx = FeatureContext(feature_id, bin_assignment, bin_size)
                 self.features.append(feature_ctx)
         elif data_set_id != DATA_SET_AGGREGATION:
             raise RuntimeError(f"Invalid DataSet: {data_set_id}")
@@ -124,18 +148,15 @@ class ProcessorDataConverter(DataConverter):
 
     @staticmethod
     def slot_to_bin(cuts: [int], slot: int) -> Tuple[int, int]:
-
         if slot < 0:
             return 0, -1
-
         if slot >= cuts[-1]:
             raise RuntimeError(f"Invalid slot {slot}, out of range [0-{cuts[-1] - 1}]")
-
+        # Linear search retained for the rare fallback/exception path
         for i in range(len(cuts) - 1):
             if cuts[i] <= slot < cuts[i + 1]:
                 bin_num = slot - cuts[i]
                 return i, bin_num
-
         raise RuntimeError(f"Logic error. Slot {slot}, out of range [0-{cuts[-1] - 1}]")
 
     @staticmethod
@@ -154,3 +175,8 @@ class ProcessorDataConverter(DataConverter):
             float_array.append(ProcessorDataConverter.int_to_float(h))
 
         return float_array
+
+    @staticmethod
+    def _raise_out_of_slot(slot: int, cuts_end: int):
+        # Helper for list comprehension exception raising
+        raise RuntimeError(f"Invalid slot {slot}, out of range [0-{cuts_end - 1}]")
