@@ -115,22 +115,28 @@ def _find_obj(item, obj_table):
         or in case that the item is a ComponentResolver, the native object created by it
 
     """
-    if isinstance(item, ComponentResolver):
-        # has this component been resolved?
+    ComponentResolver_type = ComponentResolver  # Local reference for faster isinstance
+    item_type = type(item)
+
+    if item_type is ComponentResolver_type:
         obj = obj_table.get(item.comp_name)
         if obj is None:
-            # not resolved yet
             return item
         else:
-            # already resolved
             return obj
-    elif isinstance(item, list):
-        for i, v in enumerate(item):
-            item[i] = _find_obj(v, obj_table)
+    elif item_type is list:
+        # Avoid using enumerate in tight recursive loops for a small speedup,
+        # and cache len to avoid recomputing for every recursive call
+        i = 0
+        n = len(item)
+        while i < n:
+            item[i] = _find_obj(item[i], obj_table)
+            i += 1
         return item
-    elif isinstance(item, dict):
-        for k, v in item.items():
-            item[k] = _find_obj(v, obj_table)
+    elif item_type is dict:
+        # Since item[k] may be replaced, process keys as a list to avoid iterator invalidation
+        for k in list(item.keys()):
+            item[k] = _find_obj(item[k], obj_table)
         return item
     else:
         return item
