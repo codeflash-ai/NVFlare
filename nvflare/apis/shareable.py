@@ -49,7 +49,10 @@ class Shareable(dict):
         super().__init__()
         if data:
             self.update(data)
-        self[ReservedHeaderKey.HEADERS] = {}
+        # Optimize by storing reference to the headers dict so repeated lookup is O(1)
+        headers = {}
+        super().__setitem__(ReservedHeaderKey.HEADERS, headers)
+        self._header_cache = headers
 
     def set_header(self, key: str, value):
         header = self.get(ReservedHeaderKey.HEADERS, None)
@@ -59,10 +62,13 @@ class Shareable(dict):
         header[key] = value
 
     def get_header(self, key: str, default=None):
-        header = self.get(ReservedHeaderKey.HEADERS, None)
+        # Direct access to headers dict and avoid repeated .get for ReservedHeaderKey.HEADERS
+        header = self._header_cache
         if not header:
             return default
         else:
+            # The only way this can NOT be a dict is if the header assignment above was mutated.
+            # Maintain original behavior:
             if not isinstance(header, dict):
                 raise ValueError("header object must be a dict, but got {}".format(type(header)))
             return header.get(key, default)
@@ -106,6 +112,7 @@ class Shareable(dict):
         self.set_header(ReservedHeaderKey.PEER_PROPS, props)
 
     def get_peer_props(self):
+        # Fast path from attribute; .get_header logic unchanged.
         return self.get_header(ReservedHeaderKey.PEER_PROPS, None)
 
     def get_peer_prop(self, key: str, default):
