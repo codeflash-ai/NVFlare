@@ -29,6 +29,14 @@ from cryptography.x509.oid import NameOID
 
 from nvflare.lighter.tool_consts import NVFLARE_SIG_FILE, NVFLARE_SUBMITTER_CRT_FILE
 
+_ENCODING_PEM = serialization.Encoding.PEM
+
+_FORMAT_TRADITIONAL = serialization.PrivateFormat.TraditionalOpenSSL
+
+_NO_ENCRYPTION = serialization.NoEncryption()
+
+_BEST_ENCRYPTION = serialization.BestAvailableEncryption
+
 
 class Identity:
     def __init__(self, name: str, org: str = None, role: str = None):
@@ -91,21 +99,18 @@ def generate_cert(
 
 def serialize_pri_key(pri_key, passphrase=None):
     if passphrase is None or not isinstance(passphrase, bytes):
-        return pri_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption(),
-        )
+        encryption_algorithm = _NO_ENCRYPTION
     else:
-        return pri_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.BestAvailableEncryption(password=passphrase),
-        )
+        encryption_algorithm = _BEST_ENCRYPTION(password=passphrase)
+    return pri_key.private_bytes(
+        encoding=_ENCODING_PEM,
+        format=_FORMAT_TRADITIONAL,
+        encryption_algorithm=encryption_algorithm,
+    )
 
 
 def serialize_cert(cert):
-    return cert.public_bytes(serialization.Encoding.PEM)
+    return cert.public_bytes(_ENCODING_PEM)
 
 
 def generate_keys():
