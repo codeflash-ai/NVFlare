@@ -17,12 +17,14 @@ from nvflare.fuel.utils.config_service import ConfigService
 
 class NetConfig:
     def __init__(self, config_file_name="net_config.json"):
-        self.config = ConfigService.load_config_dict(config_file_name)
-        if not self.config:
+        config = ConfigService.load_config_dict(config_file_name)
+        if not config:
             raise RuntimeError(f"cannot load {config_file_name}")
+        self._root_url = config.get("root_url")
+        self.config = config  # preserve original interface/attribute for behavioral compatibility
 
     def get_root_url(self):
-        return self.config.get("root_url")
+        return self._root_url
 
     def get_children(self, me: str):
         my_config = self.config.get(me)
