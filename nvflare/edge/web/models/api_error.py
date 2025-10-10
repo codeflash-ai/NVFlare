@@ -25,10 +25,11 @@ class ApiError(Exception):
             self.details = {"traceback": tb}
         else:
             self.details = details
+        self._str = str(self)
 
     def to_dict(self):
         return {
             "status": self.status,
-            "message": str(self),
+            "message": self._str,
             "details": self.details,
         }
