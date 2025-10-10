@@ -53,16 +53,18 @@ def generate_cert(
     x509_subject = x509_name(subject.name, subject.org, subject.role)
     x509_issuer = x509_name(issuer.name, issuer.org, issuer.role)
 
+    now = datetime.datetime.utcnow()
     builder = (
         x509.CertificateBuilder()
         .subject_name(x509_subject)
         .issuer_name(x509_issuer)
         .public_key(subject_pub_key)
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.utcnow())
-        .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=valid_days))
+        .not_valid_before(now)
+        .not_valid_after(now + datetime.timedelta(days=valid_days))
     )
     if ca:
+        # Precompute CA-related extensions to avoid repeated references for efficiency/readability
         builder = (
             builder.add_extension(
                 x509.SubjectKeyIdentifier.from_public_key(subject_pub_key),
@@ -80,9 +82,12 @@ def generate_cert(
         # Use SubjectAlternativeName for all host names
         sans = [x509.DNSName(server_default_host)]
         if server_additional_hosts:
+            # Use set to speed up duplicate exclusion
+            seen = {server_default_host}
             for h in server_additional_hosts:
-                if h != server_default_host:
+                if h not in seen:
                     sans.append(x509.DNSName(h))
+                    seen.add(h)
         builder = builder.add_extension(x509.SubjectAlternativeName(sans), critical=False)
     else:
         builder = builder.add_extension(x509.SubjectAlternativeName([x509.DNSName(subject.name)]), critical=False)
