@@ -43,21 +43,35 @@ def name_check(name: str, entity_type: str):
 
 
 def validate_class_methods_args(cls):
-    for name, method in inspect.getmembers(cls, inspect.isfunction):
+    # Pre-fetch all functions once to avoid repeated introspection in setattr
+    members = inspect.getmembers(cls, inspect.isfunction)
+    for name, method in members:
         if name != "__init_subclass__":
-            setattr(cls, name, validate_args(method))
+            # Avoid wrapping methods multiple times (idempotence)
+            if not hasattr(method, "__validated__"):
+                wrapper = validate_args(method)
+                # Mark the wrapped method so we don't wrap repeatedly
+                wrapper.__validated__ = True
+                setattr(cls, name, wrapper)
     return cls
 
 
 def validate_args(method):
+    # Cache the signature and parameter annotation mapping for fast access
     signature = inspect.signature(method)
+    parameters = signature.parameters
+
+    # Precompute empty value for fast lookup in runtime
+    empty = inspect.Signature.empty
 
     @wraps(method)
     def wrapper(*args, **kwargs):
         bound_arguments = signature.bind(*args, **kwargs)
-        for name, value in bound_arguments.arguments.items():
-            annotation = signature.parameters[name].annotation
-            if not (annotation is inspect.Signature.empty or isinstance(value, annotation)):
+        # Localize variables for faster loop
+        bound_items = bound_arguments.arguments.items()
+        for name, value in bound_items:
+            annotation = parameters[name].annotation
+            if not (annotation is empty or isinstance(value, annotation)):
                 raise TypeError(
                     "argument '{}' of {} must be {} but got {}".format(name, method, annotation, type(value))
                 )
