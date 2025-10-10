@@ -94,12 +94,19 @@ class ProcessorDataConverter(DataConverter):
         encoder = DamEncoder(DATA_SET_AGGREGATION_RESULT)
         node_list = sorted(aggr_results.keys())
         encoder.add_int_array(node_list)
+
+        to_float_array = self.to_float_array
+        add_int_array = encoder.add_int_array
+        add_float_array = encoder.add_float_array
+
         for node in node_list:
             result_list = aggr_results.get(node)
+            # List comprehension to collect feature_ids
             feature_list = [result.feature_id for result in result_list]
-            encoder.add_int_array(feature_list)
+            add_int_array(feature_list)
+            # Generator expression for conversion to float arrays, and batch adding
             for result in result_list:
-                encoder.add_float_array(self.to_float_array(result))
+                add_float_array(to_float_array(result))
 
         return encoder.finish()
 
@@ -148,9 +155,13 @@ class ProcessorDataConverter(DataConverter):
 
     @staticmethod
     def to_float_array(result: FeatureAggregationResult) -> List[float]:
-        float_array = []
-        for g, h in result.aggregated_hist:
-            float_array.append(ProcessorDataConverter.int_to_float(g))
-            float_array.append(ProcessorDataConverter.int_to_float(h))
-
-        return float_array
+        int_to_float = ProcessorDataConverter.int_to_float
+        # Pre-allocate since len(result.aggregated_hist)*2 is known
+        hist = result.aggregated_hist
+        out = [0.0] * (len(hist) * 2)
+        i = 0
+        for g, h in hist:
+            out[i] = int_to_float(g)
+            out[i + 1] = int_to_float(h)
+            i += 2
+        return out

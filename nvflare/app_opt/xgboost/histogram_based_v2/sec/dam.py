@@ -38,8 +38,9 @@ class DamEncoder:
         self.entries.append((DATA_TYPE_FLOAT_ARRAY, value))
 
     def finish(self) -> bytes:
+        entries = self.entries
         size = PREFIX_LEN
-        for entry in self.entries:
+        for entry in entries:
             size += 16
             size += len(entry[1]) * 8
 
@@ -47,16 +48,26 @@ class DamEncoder:
         self.write_int64(size)
         self.write_int64(self.data_set_id)
 
-        for entry in self.entries:
-            data_type, value = entry
-            self.write_int64(data_type)
-            self.write_int64(len(value))
+        # Pre-define struct formats for bulk packing
+        pack_int64 = struct.Struct(f"{'q'*1}").pack  # Used only for single values
+        write_int64 = self.write_int64
+        write_float = self.write_float
+        buffer_write = self.buffer.write
 
-            for x in value:
-                if data_type == DATA_TYPE_INT_ARRAY:
-                    self.write_int64(x)
-                else:
-                    self.write_float(x)
+        # For bulk writing arrays
+        def bulk_pack(fmt_s, arr):
+            buffer_write(struct.pack(fmt_s, *arr))
+
+        for data_type, value in entries:
+            write_int64(data_type)
+            write_int64(len(value))
+
+            if data_type == DATA_TYPE_INT_ARRAY and value:
+                # Bulk pack int64 array
+                buffer_write(struct.pack(f"{len(value)}q", *value))
+            elif data_type == DATA_TYPE_FLOAT_ARRAY and value:
+                # Bulk pack float array
+                buffer_write(struct.pack(f"{len(value)}d", *value))
 
         return self.buffer.getvalue()
 
