@@ -21,6 +21,8 @@ from typing import List
 
 from nvflare.apis.utils.format_check import type_pattern_mapping
 
+_PERMITTED_EXTENSIONS = {".txt", ".log", ".json", ".csv", ".sh", ".config", ".py"}
+
 
 def split_to_args(line: str) -> List[str]:
     if '"' in line:
@@ -170,7 +172,7 @@ def validate_text_file_name(file_name: str) -> str:
 
     """
     file_extension = get_file_extension(file_name)
-    if file_extension not in [".txt", ".log", ".json", ".csv", ".sh", ".config", ".py"]:
+    if file_extension not in _PERMITTED_EXTENSIONS:
         return (
             f"this command cannot be applied to file {file_name}. Only files with the following extensions are "
             "permitted: .txt, .log, .json, .csv, .sh, .config, .py"
