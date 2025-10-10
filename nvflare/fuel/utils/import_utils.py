@@ -48,10 +48,18 @@ def get_module_version(this_pkg):
 
 def get_module_version_str(the_module):
     if the_module:
-        module_version = ".".join(get_module_version(the_module))
+        v = the_module.__version__
+        dot1 = v.find(".")
+        if dot1 == -1:
+            module_version = v
+        else:
+            dot2 = v.find(".", dot1 + 1)
+            if dot2 == -1:
+                module_version = v[:dot1] + "." + v[dot1 + 1 :]
+            else:
+                module_version = v[:dot2]
     else:
         module_version = ""
-
     return module_version
 
 
