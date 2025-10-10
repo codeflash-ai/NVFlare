@@ -20,6 +20,7 @@ class NetConfig:
         self.config = ConfigService.load_config_dict(config_file_name)
         if not self.config:
             raise RuntimeError(f"cannot load {config_file_name}")
+        self._server_config = self.config.get("server")
 
     def get_root_url(self):
         return self.config.get("root_url")
@@ -32,7 +33,7 @@ class NetConfig:
             return []
 
     def get_clients(self):
-        server_config = self.config.get("server")
+        server_config = self._server_config
         if server_config:
             return server_config.get("clients", [])
         else:
