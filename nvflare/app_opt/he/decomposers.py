@@ -25,7 +25,9 @@ class CKKSVectorDecomposer(fobs.Decomposer):
         return ts.CKKSVector
 
     def decompose(self, target: ts.CKKSVector, manager: DatumManager = None) -> Any:
-        return target.serialize(), target.context().serialize()
+        # Optimize by minimizing repeated C++/Python boundary. Cache context, then serialize both.
+        ctx = target.context()
+        return target.serialize(), ctx.serialize()
 
     def recompose(self, data: Any, manager: DatumManager = None) -> ts.CKKSVector:
         vec_data, ctx_data = data
