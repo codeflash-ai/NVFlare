@@ -32,10 +32,7 @@ def get_feature_bin_range(feature_name: str, hist_config: dict) -> Optional[List
 
 def get_target_quantiles(percentile_config: dict, feature_name: str) -> list:
     if feature_name in percentile_config:
-        percents = percentile_config.get(feature_name)
-    elif "*" in percentile_config:
-        percents = percentile_config.get("*")
-    else:
-        percents = []
-
-    return percents
+        return percentile_config[feature_name]
+    if "*" in percentile_config:
+        return percentile_config["*"]
+    return []
