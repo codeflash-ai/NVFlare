@@ -131,10 +131,17 @@ class ProcessorDataConverter(DataConverter):
         if slot >= cuts[-1]:
             raise RuntimeError(f"Invalid slot {slot}, out of range [0-{cuts[-1] - 1}]")
 
-        for i in range(len(cuts) - 1):
-            if cuts[i] <= slot < cuts[i + 1]:
-                bin_num = slot - cuts[i]
-                return i, bin_num
+        left = 0
+        right = len(cuts) - 2
+        while left <= right:
+            mid = (left + right) // 2
+            if cuts[mid] <= slot < cuts[mid + 1]:
+                bin_num = slot - cuts[mid]
+                return mid, bin_num
+            elif slot < cuts[mid]:
+                right = mid - 1
+            else:
+                left = mid + 1
 
         raise RuntimeError(f"Logic error. Slot {slot}, out of range [0-{cuts[-1] - 1}]")
 
