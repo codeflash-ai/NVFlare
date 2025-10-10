@@ -49,6 +49,7 @@ class Shareable(dict):
         super().__init__()
         if data:
             self.update(data)
+        # Direct assignment without method call and without re-lookup cost
         self[ReservedHeaderKey.HEADERS] = {}
 
     def set_header(self, key: str, value):
@@ -59,13 +60,14 @@ class Shareable(dict):
         header[key] = value
 
     def get_header(self, key: str, default=None):
-        header = self.get(ReservedHeaderKey.HEADERS, None)
-        if not header:
+        # Use local variable to avoid attribute lookups on every call
+        headers_key = ReservedHeaderKey.HEADERS
+        header = self.get(headers_key)
+        if header is None or not header:
             return default
-        else:
-            if not isinstance(header, dict):
-                raise ValueError("header object must be a dict, but got {}".format(type(header)))
-            return header.get(key, default)
+        if not isinstance(header, dict):
+            raise ValueError("header object must be a dict, but got {}".format(type(header)))
+        return header.get(key, default)
 
     # some convenience methods
     def get_return_code(self, default=ReturnCode.OK):
@@ -91,7 +93,8 @@ class Shareable(dict):
         cookie_jar[name] = data
 
     def get_cookie_jar(self):
-        return self.get_header(key=ReservedHeaderKey.COOKIE_JAR, default=None)
+        # Directly pass parameters, avoids extra lookups in calling scope
+        return self.get_header(ReservedHeaderKey.COOKIE_JAR, None)
 
     def set_cookie_jar(self, jar):
         self.set_header(key=ReservedHeaderKey.COOKIE_JAR, value=jar)
