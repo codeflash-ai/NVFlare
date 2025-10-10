@@ -16,6 +16,8 @@ import inspect
 import re
 from functools import wraps
 
+_regex_cache: dict[str, re.Pattern] = {}
+
 type_pattern_mapping = {
     "server": r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$",
     "host_name": r"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$",
@@ -34,7 +36,11 @@ def name_check(name: str, entity_type: str):
     regex_pattern = type_pattern_mapping.get(entity_type)
     if regex_pattern is None:
         return True, "entity_type={} not defined, unable to check name={}.".format(entity_type, name)
-    if re.match(regex_pattern, name):
+    compiled_pattern = _regex_cache.get(entity_type)
+    if compiled_pattern is None:
+        compiled_pattern = re.compile(regex_pattern)
+        _regex_cache[entity_type] = compiled_pattern
+    if compiled_pattern.match(name):
         return False, "name={} passed on regex_pattern={} check".format(name, regex_pattern)
     else:
         return True, "name={} is ill-formatted for entity_type={} based on regex_pattern={}".format(
