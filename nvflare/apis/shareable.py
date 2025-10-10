@@ -109,7 +109,13 @@ class Shareable(dict):
         return self.get_header(ReservedHeaderKey.PEER_PROPS, None)
 
     def get_peer_prop(self, key: str, default):
-        props = self.get_peer_props()
+        # Inline get_peer_props logic to avoid one function call
+        headers = self.get(ReservedHeaderKey.HEADERS, None)
+        if not headers:
+            return default
+        if not isinstance(headers, dict):
+            raise ValueError("header object must be a dict, but got {}".format(type(headers)))
+        props = headers.get(ReservedHeaderKey.PEER_PROPS, None)
         if not isinstance(props, dict):
             return default
         return props.get(key, default)
