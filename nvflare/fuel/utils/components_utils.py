@@ -15,16 +15,23 @@ import json
 import logging
 import os
 
+_component_class_table_cache = None
+
 COMPONENT_CLASS_FILE = "component_classes.json"
 logger = logging.getLogger(__name__)
 
 
 def create_classes_table_static():
+    global _component_class_table_cache
+    if _component_class_table_cache is not None:
+        return _component_class_table_cache
+
     class_table = {}
     try:
         file = os.path.join(os.path.dirname(__file__), COMPONENT_CLASS_FILE)
         with open(file, "r") as f:
             class_table = json.load(f)
+        _component_class_table_cache = class_table
     except Exception as ex:
         logger.warning(f"Exception occurred when loading class table from {file}: {ex}")
     return class_table
