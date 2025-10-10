@@ -17,6 +17,8 @@ from nvflare.fuel.utils.validation_utils import check_str
 
 from .data_bus import DataBus
 
+_data_bus_instance = DataBus()
+
 
 def _scope_prop_key(scope_name: str, key: str):
     return f"{scope_name}::{key}"
@@ -46,8 +48,8 @@ def get_scope_property(scope_name: str, key: str, default=None) -> Any:
     """
     check_str("scope_name", scope_name)
     check_str("key", key)
-    data_bus = DataBus()
-    result = data_bus.get_data(_scope_prop_key(scope_name, key))
+    # Inline the trivial f-string function for one less call in the hot path
+    result = _data_bus_instance.get_data(f"{scope_name}::{key}")
     if result is None:
         result = default
     return result
