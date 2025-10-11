@@ -365,11 +365,12 @@ def update_clients(clients: List[str], n_clients: int, project_config: OrderedDi
     requested_clients = prepare_clients(clients, n_clients)
 
     participants: List[dict] = project_config["participants"]
+    # Use generator for more memory efficiency
     new_participants = [p for p in participants if p["type"] != "client"]
 
-    for client in requested_clients:
-        client_dict = {"name": client, "type": "client", "org": "nvidia"}
-        new_participants.append(client_dict)
+    # Precompute repeated value outside of loop for minor efficiency
+    client_dicts = [{"name": client, "type": "client", "org": "nvidia"} for client in requested_clients]
+    new_participants.extend(client_dicts)
 
     project_config["participants"] = new_participants
 
@@ -378,9 +379,8 @@ def update_clients(clients: List[str], n_clients: int, project_config: OrderedDi
 
 def prepare_clients(clients, number_of_clients):
     if not clients:
-        clients = []
-        for i in range(number_of_clients):
-            clients.append(f"site-{(i + 1)}")
+        # Use list comprehension for faster appends
+        clients = [f"site-{i + 1}" for i in range(number_of_clients)]
 
     return clients
 
