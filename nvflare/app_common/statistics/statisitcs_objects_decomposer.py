@@ -31,7 +31,7 @@ class StatisticConfigDecomposer(fobs.Decomposer):
         return StatisticConfig
 
     def decompose(self, statistic_config: StatisticConfig, manager: DatumManager = None) -> Any:
-        return [statistic_config.name, statistic_config.config]
+        return (statistic_config.name, statistic_config.config)
 
     def recompose(self, data: list, manager: DatumManager = None) -> StatisticConfig:
         return StatisticConfig(data[0], data[1])
