@@ -352,11 +352,14 @@ def add_docker_builder(use_docker: bool, project_config: OrderedDict):
 
 def add_he_builder(use_he: bool, project_config: OrderedDict):
     if use_he:
-        he_builder = {
-            "path": "nvflare.lighter.impl.he.HEBuilder",
-            "args": {},
-        }
-        project_config["builders"].insert(-1, he_builder)
+        # Inline he_builder to avoid separate dictionary construction lines
+        project_config["builders"].insert(
+            -1,
+            {
+                "path": "nvflare.lighter.impl.he.HEBuilder",
+                "args": {},
+            },
+        )
 
     return project_config
 
