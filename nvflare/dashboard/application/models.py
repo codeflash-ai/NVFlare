@@ -17,6 +17,8 @@ from datetime import datetime
 
 from . import db
 
+_PROJECT_COLUMNS_CACHE = {}
+
 
 class CommonMixin(object):
     id = db.Column(db.Integer, primary_key=True)
@@ -67,11 +69,19 @@ class Project(db.Model):
     server_props = db.Column(db.String(2048), default="")  # additional server properties - JSON string
 
     def asdict(self):
-        table_dict = {
-            c.name: getattr(self, c.name)
-            for c in self.__table__.columns
-            if c.name not in ["id", "root_cert", "root_key"]
-        }
+        cls = type(self)
+        # Use cached column list, only exclude upstream columns at caching for best speed
+        columns = _PROJECT_COLUMNS_CACHE.get(cls)
+        if columns is None:
+            columns = tuple(
+                c.name
+                for c in self.__table__.columns
+                if c.name not in ["id", "root_cert", "root_key"]
+            )
+            _PROJECT_COLUMNS_CACHE[cls] = columns
+
+        # Build the dict in a single pass, no intermediate list
+        table_dict = {name: getattr(self, name) for name in columns}
         _fix_props(self, table_dict, "project_props")
         _fix_props(self, table_dict, "server_props")
 
