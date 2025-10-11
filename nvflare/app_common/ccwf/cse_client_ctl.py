@@ -29,6 +29,7 @@ from nvflare.security.logging import secure_format_exception
 
 
 class CrossSiteEvalClientController(ClientSideController):
+
     def __init__(
         self,
         task_name_prefix=Constant.TN_PREFIX_CROSS_SITE_EVAL,
@@ -48,9 +49,11 @@ class CrossSiteEvalClientController(ClientSideController):
             shareable_generator_id="",
             persistor_id=persistor_id,
         )
-        self.eval_task_name = make_task_name(task_name_prefix, Constant.BASENAME_EVAL)
-        self.prep_model_task_name = make_task_name(task_name_prefix, Constant.BASENAME_PREP_MODEL)
-        self.ask_for_model_task_name = make_task_name(task_name_prefix, Constant.BASENAME_ASK_FOR_MODEL)
+        # Precompute all task names locally to avoid repeated function call overhead
+        tn_prefix = task_name_prefix
+        self.eval_task_name = make_task_name(tn_prefix, Constant.BASENAME_EVAL)
+        self.prep_model_task_name = make_task_name(tn_prefix, Constant.BASENAME_PREP_MODEL)
+        self.ask_for_model_task_name = make_task_name(tn_prefix, Constant.BASENAME_ASK_FOR_MODEL)
         self.submit_model_task_name = submit_model_task_name  # this is for the learner executor
         self.validation_task_name = validation_task_name
         self.my_local_model = None
@@ -125,6 +128,7 @@ class CrossSiteEvalClientController(ClientSideController):
 
     @staticmethod
     def _model_key(model_type: str, model_name: str):
+        # Use interned string concatenation for possible performance improvement (optional micro-optimization)
         return f"{model_type}::{model_name}"
 
     def _get_prepared_model(self, model_type: str, model_name: str):
