@@ -27,7 +27,6 @@ class ShellCommandValidator(object):
         self.arg_validator = arg_validator
 
     def validate(self, args: List[str]):
-        self.arg_validator.err = ""
         return self.arg_validator.validate(args)
 
     def get_usage(self):
