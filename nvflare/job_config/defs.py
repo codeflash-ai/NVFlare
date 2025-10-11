@@ -20,7 +20,8 @@ class JobTargetType:
 
     @classmethod
     def get_target_type(cls, target: str):
-        return cls.SERVER if target == cls.SERVER else cls.CLIENT
+        # Use direct string literal comparison to reduce attribute access
+        return "server" if target == "server" else "client"
 
 
 class FilterType:
