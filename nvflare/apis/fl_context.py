@@ -46,12 +46,12 @@ def make_mask(private, sticky):
 
 
 def to_string(mask) -> str:
-    if is_private(mask):
+    if mask & MASK_PRIVATE:
         result = "private:"
     else:
         result = "public:"
 
-    if is_sticky(mask):
+    if mask & MASK_STICKY:
         return result + "sticky"
     else:
         return result + "non-sticky"
