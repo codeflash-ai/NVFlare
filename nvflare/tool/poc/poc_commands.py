@@ -118,12 +118,10 @@ def get_stop_cmd(poc_workspace: str, service_dir_name: str):
 
 
 def get_nvflare_home() -> Optional[str]:
-    nvflare_home = None
-    if "NVFLARE_HOME" in os.environ:
-        nvflare_home = os.getenv("NVFLARE_HOME")
-        if nvflare_home:
-            if nvflare_home.endswith("/"):
-                nvflare_home = nvflare_home[:-1]
+    nvflare_home = os.environ.get("NVFLARE_HOME")
+    if nvflare_home:
+        if nvflare_home.endswith("/"):
+            nvflare_home = nvflare_home[:-1]
     return nvflare_home
 
 
