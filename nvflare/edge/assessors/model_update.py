@@ -196,9 +196,10 @@ class ModelUpdateAssessor(Assessor):
         # Check for device wait timeout if we are waiting for devices
         if self.device_wait_start_time is not None and self._is_device_wait_timeout_exceeded(fl_ctx):
             # Timeout exceeded, prepare an empty reply and stop the job
-            usable_devices = set(self.device_manager.get_available_devices(fl_ctx).keys()) - set(
-                self.device_manager.get_used_devices(fl_ctx).keys()
-            )
+            # Use local variables to avoid redundant lookups and to improve performance
+            avail_devices = self.device_manager.get_available_devices(fl_ctx)
+            used_devices = self.device_manager.get_used_devices(fl_ctx)
+            usable_devices = set(avail_devices.keys()) - set(used_devices.keys())
             self.log_error(
                 fl_ctx,
                 f"Total devices: {len(self.device_manager.available_devices)}, usable: {len(usable_devices)}, expected: {self.device_manager.device_selection_size}. "
@@ -214,35 +215,48 @@ class ModelUpdateAssessor(Assessor):
             return False, reply.to_shareable()
 
         accepted = True
-        if report.model_updates:
-            self.log_info(fl_ctx, f"got reported {len(report.model_updates)} model versions")
+        model_updates = report.model_updates
+        if model_updates:
+            self.log_info(fl_ctx, f"got reported {len(model_updates)} model versions")
 
             # Process model updates
-            accepted = self.model_manager.process_updates(report.model_updates, fl_ctx)
+            accepted = self.model_manager.process_updates(model_updates, fl_ctx)
 
-            # Remove reported devices from selection
-            for model_update in report.model_updates.values():
+            # Remove reported devices from selection and used sets efficiently
+            # Gather all the device keys that need to be removed in a single union set for bulk operations
+            # This is faster than looping and calling remove_devices... for each update especially if there are overlapping device sets
+            devices_to_remove = set()
+            devices_to_free = set()
+            device_reuse = getattr(self.device_manager, "device_reuse", False)
+            # Gather devices in a single iteration
+            for model_update in model_updates.values():
                 if model_update:
-                    self.device_manager.remove_devices_from_selection(set(model_update.devices.keys()), fl_ctx)
-                    # if device_reuse, remove devices from used_devices
-                    # indicating that the reported devices becomes available again for reuse
-                    if self.device_manager.device_reuse:
-                        self.device_manager.remove_devices_from_used(set(model_update.devices.keys()), fl_ctx)
+                    keys = set(model_update.devices.keys())
+                    devices_to_remove.update(keys)
+                    if device_reuse:
+                        devices_to_free.update(keys)
+
+            if devices_to_remove:
+                self.device_manager.remove_devices_from_selection(devices_to_remove, fl_ctx)
+            if devices_to_free:
+                self.device_manager.remove_devices_from_used(devices_to_free, fl_ctx)
 
         else:
             self.log_debug(fl_ctx, "no model updates")
 
         # Handle device selection
-        if self.device_manager.should_fill_selection(fl_ctx):
-            # check if we have enough devices to fill selection
-            if self.device_manager.has_enough_devices(fl_ctx):
+        should_fill = self.device_manager.should_fill_selection(fl_ctx)
+        if should_fill:
+            has_enough = self.device_manager.has_enough_devices(fl_ctx)
+            if has_enough:
                 if self.model_manager.current_model_version == 0:
                     self.log_info(fl_ctx, "Generate initial model and fill selection")
                     self.model_manager.generate_new_model(fl_ctx)
-                self.device_manager.fill_selection(self.model_manager.current_model_version, fl_ctx)
+                model_ver = self.model_manager.current_model_version
+                self.device_manager.fill_selection(model_ver, fl_ctx)
                 # prune old model versions that are no longer active
-                active_model_versions = self.device_manager.get_active_model_versions(fl_ctx)
-                self.model_manager.prune_model_versions(active_model_versions, fl_ctx)
+                active_versions = self.device_manager.get_active_model_versions(fl_ctx)
+                self.model_manager.prune_model_versions(active_versions, fl_ctx)
                 # Reset wait timer since we have enough devices
                 self.device_wait_start_time = None
             else:
@@ -252,12 +266,13 @@ class ModelUpdateAssessor(Assessor):
                     self.log_info(fl_ctx, f"Starting device wait timer (timeout: {self.device_wait_timeout}s)")
 
         # Prepare reply
+        cur_model_version = self.model_manager.current_model_version
         model = None
-        if self.model_manager.current_model_version != report.current_model_version:
+        if cur_model_version != report.current_model_version:
             model = self.model_manager.get_current_model(fl_ctx)
 
         reply = StateUpdateReply(
-            model_version=self.model_manager.current_model_version,
+            model_version=cur_model_version,
             model=model,
             device_selection_version=self.device_manager.current_selection_version,
             device_selection=self.device_manager.get_selection(fl_ctx),
