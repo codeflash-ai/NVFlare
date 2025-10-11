@@ -55,8 +55,11 @@ class FQN:
 
     @staticmethod
     def get_root(fqn: str) -> str:
-        parts = FQN.split(fqn)
-        return parts[0]
+        sep = FQN.SEPARATOR
+        idx = fqn.find(sep)
+        if idx == -1:
+            return fqn
+        return fqn[:idx]
 
     @staticmethod
     def get_parent(fqn: str) -> str:
