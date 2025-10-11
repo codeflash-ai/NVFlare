@@ -546,9 +546,7 @@ def _sort_service_cmds(cmd_type, service_cmds: list, service_config) -> list:
 
 
 def get_cmd_path(poc_workspace, service_name, cmd):
-    service_dir = os.path.join(poc_workspace, service_name)
-    bin_dir = os.path.join(service_dir, SC.STARTUP)
-    cmd_path = os.path.join(bin_dir, cmd)
+    cmd_path = os.path.join(poc_workspace, service_name, SC.STARTUP, cmd)
     return cmd_path
 
 
