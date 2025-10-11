@@ -453,7 +453,7 @@ def execute_command_directly(args: List[str]) -> str:
     """Execute a command directly, without using shell"""
 
     result = subprocess.run(
-        args, capture_output=False, text=True, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+        args, text=True, shell=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
 
     return result.stdout
