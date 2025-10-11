@@ -31,7 +31,13 @@ class CommonMixin(object):
 
 class Organization(CommonMixin, db.Model):
     def asdict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns if c.name in ("name",)}
+        # Optimize: use tuple comprehension for only the required fields and avoid repeated checks
+        columns = self.__table__.columns
+        # As only "name" is needed, directly fetch if present in columns
+        for c in columns:
+            if c.name == "name":
+                return {"name": getattr(self, "name")}
+        return {}
 
 
 class Role(CommonMixin, db.Model):
