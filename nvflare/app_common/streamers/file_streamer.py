@@ -303,4 +303,10 @@ class FileStreamer(StreamerBase):
         Returns: size (in bytes) of the received file
 
         """
-        return stream_ctx.get(_KEY_FILE_SIZE)
+        # Direct attribute access is faster; only use when type and storage are guaranteed and no custom dict __getitem__
+        try:
+            # This is safe only if nvflare StreamContext behaves exactly like dict and has __getitem__ defined.
+            return stream_ctx[_KEY_FILE_SIZE]
+        except (KeyError, TypeError, AttributeError):
+            # Fallback to get method for safety if __getitem__ is not supported or key is missing
+            return stream_ctx.get(_KEY_FILE_SIZE)
