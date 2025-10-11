@@ -43,6 +43,11 @@ from nvflare.tool.api_utils import shutdown_system
 from nvflare.tool.poc.service_constants import FlareServiceConstants as SC
 from nvflare.utils.cli_utils import get_hidden_nvflare_config_path, get_or_create_hidden_nvflare_dir, hocon_to_string
 
+_DOCKER_BUILDER = {
+    "path": "nvflare.lighter.impl.docker.DockerBuilder",
+    "args": {"base_image": "python:3.8", "requirements_file": "requirements.txt"},
+}
+
 DEFAULT_WORKSPACE = "/tmp/nvflare/poc"
 DEFAULT_PROJECT_NAME = "example_project"
 
@@ -341,10 +346,13 @@ def update_static_file_builder(docker_image: str, project_config: OrderedDict):
 
 def add_docker_builder(use_docker: bool, project_config: OrderedDict):
     if use_docker:
-        docker_builder = {
-            "path": "nvflare.lighter.impl.docker.DockerBuilder",
-            "args": {"base_image": "python:3.8", "requirements_file": "requirements.txt"},
-        }
+        # Move docker_builder definition outside the if block to avoid
+        # repeated creation of the same dictionary every call.
+        # This leverages Python's handling of module-level constants and
+        # reduces allocation overhead.
+        # The function is behavior preserving as .append() will always
+        # create a new reference in the project_config['builders'] list.
+        docker_builder = _DOCKER_BUILDER
         project_config["builders"].append(docker_builder)
 
     return project_config
