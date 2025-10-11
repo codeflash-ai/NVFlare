@@ -215,15 +215,18 @@ class ViaFileDecomposer(fobs.Decomposer, ABC):
 
     @staticmethod
     def _determine_msg_root(fobs_ctx: dict):
+        # Directly fetch both values first for more efficient access
         msg_root_id = fobs_ctx.get(_CtxKey.MSG_ROOT_ID)
         msg_root_ttl = fobs_ctx.get(_CtxKey.MSG_ROOT_TTL)
+        if msg_root_id is not None:
+            return msg_root_id, msg_root_ttl
 
-        if not msg_root_id:
-            # try to get from msg
-            msg = fobs_ctx.get(fobs.FOBSContextKey.MESSAGE)
-            if msg:
-                msg_root_id = msg.get_header(MessageHeaderKey.MSG_ROOT_ID)
-                msg_root_ttl = msg.get_header(MessageHeaderKey.MSG_ROOT_TTL)
+        # Only access the message headers if necessary
+        msg = fobs_ctx.get(fobs.FOBSContextKey.MESSAGE)
+        if msg is not None:
+            msg_get_header = msg.get_header
+            msg_root_id = msg_get_header(MessageHeaderKey.MSG_ROOT_ID)
+            msg_root_ttl = msg_get_header(MessageHeaderKey.MSG_ROOT_TTL)
         return msg_root_id, msg_root_ttl
 
     def decompose(self, target: Any, manager: DatumManager = None) -> Any:
