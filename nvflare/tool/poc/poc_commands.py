@@ -576,11 +576,9 @@ def validate_gpu_ids(gpu_ids: list, host_gpu_ids: list):
 
 def get_gpu_ids(user_input_gpu_ids, host_gpu_ids) -> List[int]:
     if type(user_input_gpu_ids) == int and user_input_gpu_ids == -1:
-        gpu_ids = host_gpu_ids
-    else:
-        gpu_ids = user_input_gpu_ids
-        validate_gpu_ids(gpu_ids, host_gpu_ids)
-    return gpu_ids
+        return host_gpu_ids
+    validate_gpu_ids(user_input_gpu_ids, host_gpu_ids)
+    return user_input_gpu_ids
 
 
 def start_poc(cmd_args):
@@ -594,11 +592,12 @@ def start_poc(cmd_args):
 
 
 def get_gpis(cmd_args):
-    if cmd_args.gpu is not None and isinstance(cmd_args.gpu, list) and len(cmd_args.gpu) > 0:
-        gpu_ids = get_gpu_ids(cmd_args.gpu, get_local_host_gpu_ids())
-    else:
-        gpu_ids = []
-    return gpu_ids
+    gpu = getattr(cmd_args, 'gpu', None)
+    if gpu and isinstance(gpu, list):
+        # Call get_local_host_gpu_ids once to avoid redundant calls.
+        host_gpu_ids = get_local_host_gpu_ids()
+        return get_gpu_ids(gpu, host_gpu_ids)
+    return []
 
 
 def get_excluded(cmd_args):
