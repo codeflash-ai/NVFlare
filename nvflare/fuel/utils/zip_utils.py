@@ -32,9 +32,16 @@ def normpath_for_zip(path):
 
 def remove_leading_dotdot(path: str) -> str:
     path = str(Path(path))
-    while path.startswith(f"..{os.path.sep}"):
-        path = path[3:]
-    return path
+    prefix = f"..{os.path.sep}"
+    prefix_len = len(prefix)
+    # Optimized: minimize repeated computation by precomputing prefix and its length
+    start = 0
+    path_len = len(path)
+    while path.startswith(prefix, start):
+        start += prefix_len
+    if start == 0:
+        return path
+    return path[start:]
 
 
 def split_path(path: str) -> (str, str):
