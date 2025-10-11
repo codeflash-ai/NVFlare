@@ -230,11 +230,14 @@ def get_fl_server_name(project_config: OrderedDict) -> str:
 
 def get_fl_admins(project_config: OrderedDict, is_project_admin: bool):
     participants: List[dict] = project_config["participants"]
-    return [
-        p["name"]
-        for p in participants
-        if p["type"] == "admin" and (p["role"] == "project_admin" if is_project_admin else p["role"] != "project_admin")
-    ]
+    admin_type = "admin"
+    if is_project_admin:
+        role_check = "project_admin"
+        # Fast path: Use list comprehension with local var and avoid repeated lookups & ternary in loop
+        return [p["name"] for p in participants if p["type"] == admin_type and p["role"] == role_check]
+    else:
+        role_check = "project_admin"
+        return [p["name"] for p in participants if p["type"] == admin_type and p["role"] != role_check]
 
 
 def get_other_admins(project_config: OrderedDict):
