@@ -602,10 +602,10 @@ def get_gpis(cmd_args):
 
 
 def get_excluded(cmd_args):
-    excluded = None
-    if cmd_args.exclude != "":
-        excluded = [cmd_args.exclude]
-    return excluded
+    val = cmd_args.exclude
+    if val != "":
+        return [val]
+    return None
 
 
 def get_service_list(cmd_args):
