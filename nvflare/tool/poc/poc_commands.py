@@ -322,12 +322,10 @@ def update_server_name(project_config):
 def is_docker_run(project_config: OrderedDict):
     if "builders" not in project_config:
         return False
-    static_builder = [
-        b
-        for b in project_config.get("builders")
-        if b.get("path") == "nvflare.lighter.impl.static_file.StaticFileBuilder"
-    ][0]
-    return "docker_image" in static_builder["args"]
+    for b in project_config.get("builders"):
+        if b.get("path") == "nvflare.lighter.impl.static_file.StaticFileBuilder":
+            return "docker_image" in b["args"]
+    raise IndexError("list index out of range")
 
 
 def update_static_file_builder(docker_image: str, project_config: OrderedDict):
