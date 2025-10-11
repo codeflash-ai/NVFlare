@@ -21,6 +21,10 @@ from nvflare.fuel.utils.attributes_exportable import AttributesExportable, Expor
 from nvflare.fuel.utils.constants import Mode
 from nvflare.fuel.utils.validation_utils import check_str
 
+_TOPIC_RE = re.compile(r"^[a-zA-Z0-9_]+$")
+
+_ALLOWED_MSG_TYPES = ("REP", "REQ")
+
 
 class Topic(object):
 
@@ -37,20 +41,22 @@ class Message:
 
     def __init__(self, msg_type: str, topic: str, data: Any, msg_id=None, req_id=None):
         check_str("msg_type", msg_type)
-        if msg_type not in [Message.REPLY, Message.REQUEST]:
-            raise ValueError(f"invalid msg_type '{msg_type}': must be one of {[Message.REPLY, Message.REQUEST]}")
+        if msg_type not in _ALLOWED_MSG_TYPES:
+            raise ValueError(f"invalid msg_type '{msg_type}': must be one of {_ALLOWED_MSG_TYPES}")
         self.msg_type = msg_type
 
         check_str("topic", topic)
         if not topic:
             raise ValueError("topic must not be empty")
 
-        if not re.match("[a-zA-Z0-9_]+$", topic):
+        # Use precompiled regex for validation
+        if not _TOPIC_RE.match(topic):
             raise ValueError("topic contains invalid char - only alphanumeric and underscore are allowed")
 
         self.topic = topic
 
-        if not msg_id:
+        # Only generate uuid if msg_id is None (prevents unnecessary generation for falsy non-None)
+        if msg_id is None:
             msg_id = str(uuid.uuid4())
 
         self.data = data
