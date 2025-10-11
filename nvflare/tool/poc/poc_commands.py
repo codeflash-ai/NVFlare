@@ -609,11 +609,7 @@ def get_excluded(cmd_args):
 
 
 def get_service_list(cmd_args):
-    if cmd_args.service != "all":
-        services_list = [cmd_args.service]
-    else:
-        services_list = []
-    return services_list
+    return [cmd_args.service] if cmd_args.service != "all" else []
 
 
 def _start_poc(poc_workspace: str, gpu_ids: List[int], excluded=None, services_list=None):
