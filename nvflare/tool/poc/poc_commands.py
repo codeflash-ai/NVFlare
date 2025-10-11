@@ -296,11 +296,40 @@ def local_provision(
 
 
 def get_service_config(project_config):
+    # Gather roles in one pass for reduced repeated scans of participants
+    participants: List[dict] = project_config["participants"]
+    server_name = None
+    proj_admin = None
+    other_admins = []
+    client_names = []
+    server_count = 0
+    proj_admins = []
+    # Used to avoid repeated passes through participants
+    for p in participants:
+        t = p["type"]
+        if t == "server":
+            server_name = p["name"]
+            server_count += 1
+        elif t == "client":
+            client_names.append(p["name"])
+        elif t == "admin":
+            if p["role"] == "project_admin":
+                proj_admins.append(p["name"])
+            else:
+                other_admins.append(p["name"])
+    # Consistency with original checks
+    if server_count != 1:
+        servers = [p["name"] for p in participants if p["type"] == "server"]
+        raise CLIException(f"project should only have one server, but {len(servers)} are provided: {servers}")
+    if len(proj_admins) != 1:
+        raise CLIException(f"project should have only one project admin, but {len(proj_admins)} are provided: {proj_admins}")
+    proj_admin = proj_admins[0]
+
     service_config = {
-        SC.FLARE_SERVER: get_fl_server_name(project_config),
-        SC.FLARE_PROJ_ADMIN: get_proj_admin(project_config),
-        SC.FLARE_OTHER_ADMINS: get_other_admins(project_config),
-        SC.FLARE_CLIENTS: get_fl_client_names(project_config),
+        SC.FLARE_SERVER: server_name,
+        SC.FLARE_PROJ_ADMIN: proj_admin,
+        SC.FLARE_OTHER_ADMINS: other_admins,
+        SC.FLARE_CLIENTS: client_names,
         SC.IS_DOCKER_RUN: is_docker_run(project_config),
     }
     return service_config
@@ -320,14 +349,18 @@ def update_server_name(project_config):
 
 
 def is_docker_run(project_config: OrderedDict):
-    if "builders" not in project_config:
+    builders = project_config.get("builders")
+    if not builders:
         return False
-    static_builder = [
-        b
-        for b in project_config.get("builders")
-        if b.get("path") == "nvflare.lighter.impl.static_file.StaticFileBuilder"
-    ][0]
-    return "docker_image" in static_builder["args"]
+    # Avoids building an intermediate list, breaks at first match
+    for b in builders:
+        if b.get("path") == "nvflare.lighter.impl.static_file.StaticFileBuilder":
+            return "docker_image" in b["args"]
+    # If no builder matches, function will error (as before with [0] IndexError) or return None, 
+    # but let's keep behavior as original: will raise if not found.
+    static_builder = [b for b in builders if b.get("path") == "nvflare.lighter.impl.static_file.StaticFileBuilder"]
+    # Should be unreachable, but kept for exact behavioral parity
+    return "docker_image" in static_builder[0]["args"]
 
 
 def update_static_file_builder(docker_image: str, project_config: OrderedDict):
