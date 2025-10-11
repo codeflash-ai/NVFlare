@@ -57,25 +57,29 @@ def client_gpu_assignments(clients: List[str], gpu_ids: List[int]) -> Dict[str, 
     n_gpus = len(gpu_ids)
     n_clients = len(clients)
     gpu_assignments = {}
+
     if n_gpus == 0:
+        # no GPUs to assign
         for client in clients:
             gpu_assignments[client] = []
+        return gpu_assignments
 
     if 0 < n_gpus <= n_clients:
+        # Assign each client one GPU in round-robin fashion
         for client_id, client in enumerate(clients):
-            gpu_index = client_id % n_gpus
-            gpu_assignments[client] = [gpu_ids[gpu_index]]
-    elif n_gpus > n_clients > 0:
-        client_name_map = {}
-        for client_id, client in enumerate(clients):
-            client_name_map[client_id] = client
+            gpu_assignments[client] = [gpu_ids[client_id % n_gpus]]
+        return gpu_assignments
 
+    if n_gpus > n_clients > 0:
+        # Each client may get multiple GPUs, distribute them round-robin
+        # Avoid creating a name map and reindexing; instead pre-initialize the dict
+        for client in clients:
+            gpu_assignments[client] = []
         for gpu_index, gpu_id in enumerate(gpu_ids):
-            client_id = gpu_index % n_clients
-            client = client_name_map[client_id]
-            if client not in gpu_assignments:
-                gpu_assignments[client] = []
-            gpu_assignments[client].append(gpu_ids[gpu_index])
+            client = clients[gpu_index % n_clients]
+            gpu_assignments[client].append(gpu_id)
+        return gpu_assignments
+
     return gpu_assignments
 
 
