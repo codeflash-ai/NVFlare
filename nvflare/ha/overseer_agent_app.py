@@ -19,17 +19,21 @@ from nvflare.ha.overseer_agent import HttpOverseerAgent
 
 
 def setup_basic_info():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--project", type=str, default="example_project", help="project name")
-    parser.add_argument("-r", "--role", type=str, help="role (server, client or admin)")
-    parser.add_argument("-n", "--name", type=str, help="globally unique name")
-    parser.add_argument("-f", "--fl_port", type=str, help="fl port number")
-    parser.add_argument("-a", "--admin_port", type=str, help="adm port number")
-    parser.add_argument("-s", "--sleep", type=float, help="sleep (seconds) in heartbeat")
-    parser.add_argument("-c", "--ca_path", type=str, help="root CA path")
-    parser.add_argument("-o", "--overseer_url", type=str, help="Overseer URL")
-    parser.add_argument("-t", "--cert_path", type=str, help="cert path")
-    parser.add_argument("-v", "--prv_key_path", type=str, help="private key path")
+    if not hasattr(setup_basic_info, "_parser"):
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-p", "--project", type=str, default="example_project", help="project name")
+        parser.add_argument("-r", "--role", type=str, help="role (server, client or admin)")
+        parser.add_argument("-n", "--name", type=str, help="globally unique name")
+        parser.add_argument("-f", "--fl_port", type=str, help="fl port number")
+        parser.add_argument("-a", "--admin_port", type=str, help="adm port number")
+        parser.add_argument("-s", "--sleep", type=float, help="sleep (seconds) in heartbeat")
+        parser.add_argument("-c", "--ca_path", type=str, help="root CA path")
+        parser.add_argument("-o", "--overseer_url", type=str, help="Overseer URL")
+        parser.add_argument("-t", "--cert_path", type=str, help="cert path")
+        parser.add_argument("-v", "--prv_key_path", type=str, help="private key path")
+        setup_basic_info._parser = parser
+    else:
+        parser = setup_basic_info._parser
 
     args = parser.parse_args()
 
