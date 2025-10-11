@@ -27,6 +27,7 @@ from nvflare.fuel.utils.fobs.datum import DatumManager
 
 
 class StatisticConfigDecomposer(fobs.Decomposer):
+    @classmethod
     def supported_type(self) -> Type[Any]:
         return StatisticConfig
 
