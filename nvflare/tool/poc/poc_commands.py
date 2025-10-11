@@ -378,9 +378,7 @@ def update_clients(clients: List[str], n_clients: int, project_config: OrderedDi
 
 def prepare_clients(clients, number_of_clients):
     if not clients:
-        clients = []
-        for i in range(number_of_clients):
-            clients.append(f"site-{(i + 1)}")
+        clients = [f"site-{i + 1}" for i in range(number_of_clients)]
 
     return clients
 
