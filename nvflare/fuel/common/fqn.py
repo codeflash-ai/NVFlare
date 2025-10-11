@@ -60,10 +60,8 @@ class FQN:
 
     @staticmethod
     def get_parent(fqn: str) -> str:
-        parts = FQN.split(fqn)
-        if len(parts) == 1:
-            return ""
-        return FQN.join(parts[0:-1])
+        head, sep, _ = fqn.rpartition(FQN.SEPARATOR)
+        return head
 
     @staticmethod
     def is_parent(fqn1: str, fqn2: str) -> bool:
