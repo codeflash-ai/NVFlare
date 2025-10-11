@@ -297,30 +297,33 @@ def validate_auth_headers(message: CellMessage, token_verifier: TokenVerifier, l
     """
     headers = message.headers
     logger.debug(f"**** _validate_auth_headers: {headers=}")
-    topic = message.get_header(MessageHeaderKey.TOPIC)
-    channel = message.get_header(MessageHeaderKey.CHANNEL)
 
-    origin = message.get_header(MessageHeaderKey.ORIGIN)
+    # Use local variable lookups for header keys for efficiency
+    get_header = headers.get
+
+    topic = get_header(MessageHeaderKey.TOPIC)
+    channel = get_header(MessageHeaderKey.CHANNEL)
+    origin = get_header(MessageHeaderKey.ORIGIN)
 
     if topic in [CellChannelTopic.Register, CellChannelTopic.Challenge] and channel == CellChannel.SERVER_MAIN:
         # skip: client not registered yet
         logger.debug(f"skip special message {topic=} {channel=}")
         return None
 
-    client_name = message.get_header(CellMessageHeaderKeys.CLIENT_NAME)
+    client_name = get_header(CellMessageHeaderKeys.CLIENT_NAME)
     err_text = f"unauthenticated msg ({channel=} {topic=}) received from {origin}"
     if not client_name:
         err = "missing client name"
         logger.error(f"{err_text}: {err}")
         return make_cellnet_reply(rc=F3ReturnCode.UNAUTHENTICATED, error=err)
 
-    token = message.get_header(CellMessageHeaderKeys.TOKEN)
+    token = get_header(CellMessageHeaderKeys.TOKEN)
     if not token:
         err = "missing auth token"
         logger.error(f"{err_text}: {err}")
         return make_cellnet_reply(rc=F3ReturnCode.UNAUTHENTICATED, error=err)
 
-    signature = message.get_header(CellMessageHeaderKeys.TOKEN_SIGNATURE)
+    signature = get_header(CellMessageHeaderKeys.TOKEN_SIGNATURE)
     if not signature:
         err = "missing auth token signature"
         logger.error(f"{err_text}: {err}")
