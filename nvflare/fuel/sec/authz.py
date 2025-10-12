@@ -83,14 +83,27 @@ class ConditionEvaluator(ABC):
 class UserOrgEvaluator(ConditionEvaluator):
     def __init__(self, target):
         self.target = target
+        # Pre-bind case to speed up branching, only for "site" and "submitter"
+        self._eval_func = self._get_eval_func(target)
 
     def evaluate(self, site_org: str, ctx: AuthzContext):
-        if self.target == _TARGET_SITE:
-            return ctx.user.org == site_org
-        elif self.target == _TARGET_SUBMITTER:
-            return ctx.user.org == ctx.submitter.org
+        # Avoid runtime branching with precomputed function reference
+        return self._eval_func(site_org, ctx)
+
+    def _get_eval_func(self, target):
+        # Precompute the evaluation function to remove runtime 'if' branching
+        if target == _TARGET_SITE:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == site_org
+            return _eval
+        elif target == _TARGET_SUBMITTER:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == ctx.submitter.org
+            return _eval
         else:
-            return ctx.user.org == self.target
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == target
+            return _eval
 
 
 class UserNameEvaluator(ConditionEvaluator):
@@ -257,7 +270,13 @@ class Policy(object):
 def _normalize_str(s: str, field_name: FieldNames) -> str:
     if not isinstance(s, str):
         raise TypeError(f"{field_name.value} must be a str but got {type(s)}")
-    return " ".join(s.lower().split())
+    # Optimization: avoid unnecessary temporary lists and take advantage of str.split()'s default behavior.
+    s = s.lower()
+    # Fast path for already-normalized strings (no extra spaces)
+    if "  " not in s and not s.startswith(" ") and not s.endswith(" "):
+        return s
+    # Fallback to handle multiple spaces
+    return " ".join(s.split())
 
 
 def _role_right_key(role_name: str, right_name: str):
