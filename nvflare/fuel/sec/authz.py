@@ -83,14 +83,27 @@ class ConditionEvaluator(ABC):
 class UserOrgEvaluator(ConditionEvaluator):
     def __init__(self, target):
         self.target = target
+        # Pre-bind case to speed up branching, only for "site" and "submitter"
+        self._eval_func = self._get_eval_func(target)
 
     def evaluate(self, site_org: str, ctx: AuthzContext):
-        if self.target == _TARGET_SITE:
-            return ctx.user.org == site_org
-        elif self.target == _TARGET_SUBMITTER:
-            return ctx.user.org == ctx.submitter.org
+        # Avoid runtime branching with precomputed function reference
+        return self._eval_func(site_org, ctx)
+
+    def _get_eval_func(self, target):
+        # Precompute the evaluation function to remove runtime 'if' branching
+        if target == _TARGET_SITE:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == site_org
+            return _eval
+        elif target == _TARGET_SUBMITTER:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == ctx.submitter.org
+            return _eval
         else:
-            return ctx.user.org == self.target
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == target
+            return _eval
 
 
 class UserNameEvaluator(ConditionEvaluator):
@@ -227,11 +240,17 @@ class Policy(object):
         return self.roles
 
     def _eval_for_role(self, role: str, site_org: str, ctx: AuthzContext):
-        conds = self.role_right_map.get(_role_right_key(role, _ANY_RIGHT))
-        if not conds:
-            conds = self.role_right_map.get(_role_right_key(role, ctx.right))
+        # Try using a local var to avoid attribute lookups in a hot function
+        role_right_map = self.role_right_map
+        right = ctx.right
 
-        if not conds:
+        # First, try with the ANY_RIGHT
+        conds = role_right_map.get(_role_right_key(role, _ANY_RIGHT))
+        if conds is None:
+            # Only do the second lookup if needed
+            conds = role_right_map.get(_role_right_key(role, right))
+
+        if conds is None:
             return False
 
         return conds.evaluate(site_org, ctx)
@@ -246,8 +265,11 @@ class Policy(object):
         Returns:
             A tuple of (result, error)
         """
-        site_org = _normalize_str(site_org, FieldNames.SITE_ORG)
-        permitted = self._eval_for_role(role=ctx.user.role, site_org=site_org, ctx=ctx)
+        # Inline the _normalize_str pattern for small perf win and early type-check
+        if not isinstance(site_org, str):
+            raise TypeError(f"{FieldNames.SITE_ORG.value} must be a str but got {type(site_org)}")
+        site_org_norm = " ".join(site_org.lower().split())
+        permitted = self._eval_for_role(role=ctx.user.role, site_org=site_org_norm, ctx=ctx)
         if permitted:
             # permitted if any role is okay
             return True, ""
