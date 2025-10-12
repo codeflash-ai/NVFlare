@@ -54,7 +54,7 @@ def _cell_fqcn(mode, site_name, token, parent_fqcn):
     if parent_fqcn == FQCN.ROOT_SERVER:
         return base
     else:
-        return FQCN.join([parent_fqcn, base])
+        return parent_fqcn + FQCN.SEPARATOR + base
 
 
 def _to_cell_message(msg: Message, extra=None) -> CellMessage:
