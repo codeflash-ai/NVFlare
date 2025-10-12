@@ -266,8 +266,9 @@ class LoggerNameFilter(logging.Filter):
     def filter(self, record):
         name = getattr(record, "fullName", record.name)
 
-        is_logger_included = self.matches_name(name, self.logger_names)
-        is_logger_excluded = self.matches_name(name, self.exclude_logger_names)
+        # Call matches_name once for each of include/exclude, use optimized logic
+        is_logger_included = _matches_name(name, self.logger_names)
+        is_logger_excluded = _matches_name(name, self.exclude_logger_names)
 
         return (self.allow_all_error_logs and record.levelno > logging.INFO) or (
             is_logger_included and not is_logger_excluded
@@ -435,3 +436,22 @@ def center_message(message: str, boarder_str="=", line_width=80):
     boarder = f"\n{boarder_str * line_width}\n" if boarder_str else "\n"
     centered_message = message.center(line_width)
     return f"{boarder}{centered_message}{boarder}"
+
+
+def _matches_name(name: str, logger_names) -> bool:
+    """Optimized helper: avoid repeated split/startswith."""
+    if not logger_names:
+        return False
+
+    # Eliminate repeated split by running it once per call if logger_names present
+    split_last = name.rpartition(".")[2] if "." in name else name
+
+    for logger_name in logger_names:
+        # Guard: skip empty strings which may occur by accident, matches nothing
+        if not logger_name:
+            continue
+
+        # If startswith OR last token match, return True
+        if name.startswith(logger_name) or split_last == logger_name:
+            return True
+    return False
