@@ -42,7 +42,8 @@ class FeatureDecomposer(fobs.Decomposer):
         return Feature
 
     def decompose(self, f: Feature, manager: DatumManager = None) -> Any:
-        return [f.feature_name, f.data_type]
+        # Use tuple instead of list for better memory and speed
+        return (f.feature_name, f.data_type)
 
     def recompose(self, data: list, manager: DatumManager = None) -> Feature:
         return Feature(data[0], data[1])
