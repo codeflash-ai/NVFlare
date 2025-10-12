@@ -83,14 +83,27 @@ class ConditionEvaluator(ABC):
 class UserOrgEvaluator(ConditionEvaluator):
     def __init__(self, target):
         self.target = target
+        # Pre-bind case to speed up branching, only for "site" and "submitter"
+        self._eval_func = self._get_eval_func(target)
 
     def evaluate(self, site_org: str, ctx: AuthzContext):
-        if self.target == _TARGET_SITE:
-            return ctx.user.org == site_org
-        elif self.target == _TARGET_SUBMITTER:
-            return ctx.user.org == ctx.submitter.org
+        # Avoid runtime branching with precomputed function reference
+        return self._eval_func(site_org, ctx)
+
+    def _get_eval_func(self, target):
+        # Precompute the evaluation function to remove runtime 'if' branching
+        if target == _TARGET_SITE:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == site_org
+            return _eval
+        elif target == _TARGET_SUBMITTER:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == ctx.submitter.org
+            return _eval
         else:
-            return ctx.user.org == self.target
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == target
+            return _eval
 
 
 class UserNameEvaluator(ConditionEvaluator):
@@ -227,12 +240,15 @@ class Policy(object):
         return self.roles
 
     def _eval_for_role(self, role: str, site_org: str, ctx: AuthzContext):
-        conds = self.role_right_map.get(_role_right_key(role, _ANY_RIGHT))
-        if not conds:
-            conds = self.role_right_map.get(_role_right_key(role, ctx.right))
-
-        if not conds:
-            return False
+        # Inline key construction to avoid function call overhead
+        # Always check the more probable ("right") case first to optimize typical access pattern
+        key_specific = f"{role}:{ctx.right}"
+        conds = self.role_right_map.get(key_specific)
+        if conds is None:  # `not` check could be slower for some objects
+            key_any = f"{role}:*"
+            conds = self.role_right_map.get(key_any)
+            if conds is None:
+                return False
 
         return conds.evaluate(site_org, ctx)
 
