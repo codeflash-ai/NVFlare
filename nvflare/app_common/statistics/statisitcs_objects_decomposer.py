@@ -45,7 +45,9 @@ class FeatureDecomposer(fobs.Decomposer):
         return [f.feature_name, f.data_type]
 
     def recompose(self, data: list, manager: DatumManager = None) -> Feature:
-        return Feature(data[0], data[1])
+        # Access fields as local variables for minor performance gain
+        d0, d1 = data[0], data[1]
+        return Feature(d0, d1)
 
 
 class BinDecomposer(fobs.Decomposer):
