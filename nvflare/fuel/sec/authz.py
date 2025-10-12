@@ -83,14 +83,27 @@ class ConditionEvaluator(ABC):
 class UserOrgEvaluator(ConditionEvaluator):
     def __init__(self, target):
         self.target = target
+        # Pre-bind case to speed up branching, only for "site" and "submitter"
+        self._eval_func = self._get_eval_func(target)
 
     def evaluate(self, site_org: str, ctx: AuthzContext):
-        if self.target == _TARGET_SITE:
-            return ctx.user.org == site_org
-        elif self.target == _TARGET_SUBMITTER:
-            return ctx.user.org == ctx.submitter.org
+        # Avoid runtime branching with precomputed function reference
+        return self._eval_func(site_org, ctx)
+
+    def _get_eval_func(self, target):
+        # Precompute the evaluation function to remove runtime 'if' branching
+        if target == _TARGET_SITE:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == site_org
+            return _eval
+        elif target == _TARGET_SUBMITTER:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == ctx.submitter.org
+            return _eval
         else:
-            return ctx.user.org == self.target
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == target
+            return _eval
 
 
 class UserNameEvaluator(ConditionEvaluator):
@@ -131,18 +144,21 @@ class _RoleRightConditions(object):
 
     def evaluate(self, site_org: str, ctx: AuthzContext):
         # first evaluate blocked list
-        if self.blocked_conditions:
-            if self._any_condition_matched(self.blocked_conditions, site_org, ctx):
-                # if any block condition is met, return False
-                return False
+        blocked_conds = self.blocked_conditions
+        if blocked_conds:
+            for e in blocked_conds:
+                if e.evaluate(site_org, ctx):
+                    # if any block condition is met, return False
+                    return False
 
         # evaluate allowed list
-        if self.allowed_conditions:
-            if self._any_condition_matched(self.allowed_conditions, site_org, ctx):
-                return True
-            else:
-                # all allowed conditions failed
-                return False
+        allowed_conds = self.allowed_conditions
+        if allowed_conds:
+            for e in allowed_conds:
+                if e.evaluate(site_org, ctx):
+                    return True
+            # all allowed conditions failed
+            return False
 
         # no allowed list specified - only blocked list specified
         # we got here since no blocked condition matched
