@@ -101,4 +101,5 @@ def agent_site_fqcn(site_name: str, agent_id: str):
     # this prefix will make the agent site's FQCN < the CJ's FQCN
     # this is necessary to enable ad-hoc connections between CJ and agent, where CJ listens
     # with ad-hoc connection, the cell with greater FQCN listens.
-    return FQCN.join([site_name, f"-{agent_id}"])
+    separator = FQCN.SEPARATOR
+    return f"{site_name}{separator}-{agent_id}"
