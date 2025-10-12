@@ -83,14 +83,27 @@ class ConditionEvaluator(ABC):
 class UserOrgEvaluator(ConditionEvaluator):
     def __init__(self, target):
         self.target = target
+        # Pre-bind case to speed up branching, only for "site" and "submitter"
+        self._eval_func = self._get_eval_func(target)
 
     def evaluate(self, site_org: str, ctx: AuthzContext):
-        if self.target == _TARGET_SITE:
-            return ctx.user.org == site_org
-        elif self.target == _TARGET_SUBMITTER:
-            return ctx.user.org == ctx.submitter.org
+        # Avoid runtime branching with precomputed function reference
+        return self._eval_func(site_org, ctx)
+
+    def _get_eval_func(self, target):
+        # Precompute the evaluation function to remove runtime 'if' branching
+        if target == _TARGET_SITE:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == site_org
+            return _eval
+        elif target == _TARGET_SUBMITTER:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == ctx.submitter.org
+            return _eval
         else:
-            return ctx.user.org == self.target
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == target
+            return _eval
 
 
 class UserNameEvaluator(ConditionEvaluator):
@@ -149,26 +162,32 @@ class _RoleRightConditions(object):
         return True
 
     def _parse_one_expression(self, exp) -> str:
-        v = _normalize_str(exp, FieldNames.EXP)
-        blocked = False
-        parts = v.split()
-        if len(parts) == 2 and parts[0] == "not":
+        # Fast-path checks before normalization
+        if not isinstance(exp, str):
+            raise TypeError(f"{FieldNames.EXP.value} must be a str but got {type(exp)}")
+        exp_strip = exp.strip()
+        exp_lower = exp_strip.lower()
+        # Avoid allocating a new string for split in most cases
+        if exp_lower.startswith("not "):
             blocked = True
-            v = parts[1]
+            v = exp_lower[4:].strip()
+        else:
+            blocked = False
+            v = exp_lower
 
-        if v in ["all", "any"]:
+        if v == "all" or v == "any":
             ev = TrueEvaluator()
-        elif v in ["none", "no"]:
+        elif v == "none" or v == "no":
             ev = FalseEvaluator()
         else:
-            parts = v.split(":")
-            if len(parts) == 2:
-                target_type = _normalize_str(parts[0], FieldNames.TARGET_TYPE)
-                target_value = _normalize_str(parts[1], FieldNames.TARGET_VALUE)
-
-                if target_type in ["o", "org"]:
+            split_idx = v.find(":")
+            if 0 < split_idx < len(v) - 1 and v.count(":") == 1:
+                target_type = v[:split_idx].strip()
+                target_value = v[split_idx+1:].strip()
+                # Manual normalization instead of _normalize_str for FieldNames
+                if target_type == "o" or target_type == "org":
                     ev = UserOrgEvaluator(target_value)
-                elif target_type in ["n", "name"]:
+                elif target_type == "n" or target_type == "name":
                     ev = UserNameEvaluator(target_value)
                 else:
                     return f'bad condition expression "{exp}": invalid type "{target_type}"'
