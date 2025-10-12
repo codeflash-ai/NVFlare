@@ -52,9 +52,11 @@ class _StatusFilter(_JobFilter):
             # turning to list
             status_to_check = [status_to_check]
         self.status_to_check = status_to_check
+        # Cache the constant value locally
+        self._status_key = JobMetaKey.STATUS.value
 
     def filter_job(self, info: JobInfo):
-        status = info.meta.get(JobMetaKey.STATUS.value)
+        status = info.meta.get(self._status_key)
         if status in self.status_to_check:
             self.result.append(job_from_meta(info.meta))
         return True

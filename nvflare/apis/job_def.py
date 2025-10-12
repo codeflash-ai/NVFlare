@@ -124,6 +124,13 @@ class Job:
         self.run_record = None  # job id, dispatched time/UUID, finished time, completion code (normal, aborted)
         self.run_aborted = False
 
+        # Precompute a mapping of participant -> app for fast job lookup in get_application_name
+        self._participant_application_map = {}
+        for app, sites in self.deploy_map.items():
+            for site in sites:
+                if site not in self._participant_application_map:
+                    self._participant_application_map[site] = app
+
     def get_deployment(self) -> Dict[str, List[str]]:
         """Returns the deployment configuration.
 
@@ -158,11 +165,8 @@ class Job:
 
     def get_application_name(self, participant):
         """Get the application name for the specified participant."""
-        for app in self.deploy_map:
-            for site in self.deploy_map[app]:
-                if site == participant:
-                    return app
-        return None
+        # Use precomputed mapping for O(1) lookup
+        return self._participant_application_map.get(participant, None)
 
     def get_resource_requirements(self):
         """Returns app resource requirements.
@@ -185,13 +189,20 @@ def job_from_meta(meta: dict) -> Job:
     Returns:
         A Job object.
     """
+    # Cache values locally to avoid repeated dictionary lookups
+    get = meta.get
+    job_id = get(JobMetaKey.JOB_ID, "")
+    resource_spec = get(JobMetaKey.RESOURCE_SPEC, {})
+    deploy_map = get(JobMetaKey.DEPLOY_MAP, {})
+    min_sites = get(JobMetaKey.MIN_CLIENTS, 1)
+    required_sites = get(JobMetaKey.MANDATORY_CLIENTS, [])
     job = Job(
-        job_id=meta.get(JobMetaKey.JOB_ID, ""),
-        resource_spec=meta.get(JobMetaKey.RESOURCE_SPEC, {}),
-        deploy_map=meta.get(JobMetaKey.DEPLOY_MAP, {}),
+        job_id=job_id,
+        resource_spec=resource_spec,
+        deploy_map=deploy_map,
         meta=meta,
-        min_sites=meta.get(JobMetaKey.MIN_CLIENTS, 1),
-        required_sites=meta.get(JobMetaKey.MANDATORY_CLIENTS, []),
+        min_sites=min_sites,
+        required_sites=required_sites,
     )
     return job
 
