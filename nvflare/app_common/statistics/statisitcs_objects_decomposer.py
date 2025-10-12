@@ -75,7 +75,8 @@ class HistogramDecomposer(fobs.Decomposer):
         return Histogram
 
     def decompose(self, b: Histogram, manager: DatumManager = None) -> Any:
-        return [b.hist_type, b.bins, b.hist_name]
+        # Use tuple for slightly faster construction and less memory than list
+        return (b.hist_type, b.bins, b.hist_name)
 
     def recompose(self, data: list, manager: DatumManager = None) -> Histogram:
         return Histogram(data[0], data[1], data[2])
