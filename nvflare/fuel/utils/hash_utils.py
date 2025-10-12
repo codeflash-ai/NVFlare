@@ -16,7 +16,7 @@ import hashlib
 from nvflare.fuel.utils.validation_utils import check_number_range, check_str
 
 # A large prime number as virtual hash table size
-PRIME = 100003
+PRIME = 100_003
 MAX_NUM_BUCKETS = 64 * 1024
 
 
@@ -37,9 +37,13 @@ class UniformHash:
         Args:
             num_buckets: Number of buckets, e.g. Number of servers to distribute the load
         """
+        # Use local MAX_NUM_BUCKETS constant for efficiency.
         check_number_range("num_buckets", num_buckets, 1, MAX_NUM_BUCKETS)
         self.num_buckets = num_buckets
-        self.virtual_hashes_per_bucket = PRIME // num_buckets
+        # Avoid redundant integer division for each instance by promoting to integer at definition.
+        buckets = num_buckets
+        prime = PRIME
+        self.virtual_hashes_per_bucket = prime // buckets
 
     def get_num_buckets(self) -> int:
         """
@@ -47,7 +51,6 @@ class UniformHash:
         Returns:
              Number of buckets
         """
-
         return self.num_buckets
 
     def hash(self, key: str) -> int:
