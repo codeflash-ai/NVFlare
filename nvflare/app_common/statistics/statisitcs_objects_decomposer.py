@@ -64,7 +64,8 @@ class BinRangeDecomposer(fobs.Decomposer):
         return BinRange
 
     def decompose(self, b: BinRange, manager: DatumManager = None) -> Any:
-        return [b.min_value, b.max_value]
+        # Using tuple instead of list for better performance and immutability
+        return (b.min_value, b.max_value)
 
     def recompose(self, data: list, manager: DatumManager = None) -> BinRange:
         return BinRange(data[0], data[1])
