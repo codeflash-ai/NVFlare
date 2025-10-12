@@ -25,6 +25,8 @@ from nvflare.app_common.abstract.statistics_spec import (
 from nvflare.fuel.utils import fobs
 from nvflare.fuel.utils.fobs.datum import DatumManager
 
+__slots__ = ()
+
 
 class StatisticConfigDecomposer(fobs.Decomposer):
     def supported_type(self) -> Type[Any]:
@@ -53,7 +55,9 @@ class BinDecomposer(fobs.Decomposer):
         return Bin
 
     def decompose(self, b: Bin, manager: DatumManager = None) -> Any:
-        return [b.low_value, b.high_value, b.sample_count]
+        # Direct tuple is slightly faster and uses less memory than list in such a fixed shape context;
+        # retain list if required by framework, else tuple is preferred.
+        return (b.low_value, b.high_value, b.sample_count)
 
     def recompose(self, data: list, manager: DatumManager = None) -> Bin:
         return Bin(data[0], data[1], data[2])
