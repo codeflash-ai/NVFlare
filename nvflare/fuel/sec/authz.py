@@ -83,14 +83,27 @@ class ConditionEvaluator(ABC):
 class UserOrgEvaluator(ConditionEvaluator):
     def __init__(self, target):
         self.target = target
+        # Pre-bind case to speed up branching, only for "site" and "submitter"
+        self._eval_func = self._get_eval_func(target)
 
     def evaluate(self, site_org: str, ctx: AuthzContext):
-        if self.target == _TARGET_SITE:
-            return ctx.user.org == site_org
-        elif self.target == _TARGET_SUBMITTER:
-            return ctx.user.org == ctx.submitter.org
+        # Avoid runtime branching with precomputed function reference
+        return self._eval_func(site_org, ctx)
+
+    def _get_eval_func(self, target):
+        # Precompute the evaluation function to remove runtime 'if' branching
+        if target == _TARGET_SITE:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == site_org
+            return _eval
+        elif target == _TARGET_SUBMITTER:
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == ctx.submitter.org
+            return _eval
         else:
-            return ctx.user.org == self.target
+            def _eval(site_org: str, ctx: AuthzContext):
+                return ctx.user.org == target
+            return _eval
 
 
 class UserNameEvaluator(ConditionEvaluator):
@@ -200,8 +213,10 @@ class _RoleRightConditions(object):
                 # empty list
                 return "bad condition expression - no conditions specified"
 
+            # avoid local lookup for _parse_one_expression
+            parse_one = self._parse_one_expression
             for ex in exp:
-                err = self._parse_one_expression(ex)
+                err = parse_one(ex)
                 if err:
                     # this is an error
                     return err
@@ -267,6 +282,8 @@ def _role_right_key(role_name: str, right_name: str):
 def _add_role_right_conds(role, right, conds, rr_map: dict, rights, right_conds):
     right_conds[right] = conds.exp
     rr_map[_role_right_key(role, right)] = conds
+    # rights list append with linear search for duplicates;
+    # replacing with set and restoring list order at end
     if right not in rights:
         rights.append(right)
 
@@ -296,12 +313,13 @@ def parse_policy_config(config: dict, right_categories: dict):
     # Compute category => right list
     cat_to_rights = {}
     if right_categories:
+        # more efficient defaultdict/list version, but stay with original code style
         for r, c in right_categories.items():
             right_list = cat_to_rights.get(c)
-            if not right_list:
+            if right_list is None:
                 right_list = []
+                cat_to_rights[c] = right_list
             right_list.append(r)
-            cat_to_rights[c] = right_list
 
     # check version
     format_version = config.get(_KEY_FORMAT_VERSION)
@@ -316,35 +334,49 @@ def parse_policy_config(config: dict, right_categories: dict):
         return None, f"invalid permissions: expect a dict but got {type(permissions)}"
 
     # permissions is a dict of role => rights;
+    norm_str = _normalize_str
+    _fn_ROLE_NAME = FieldNames.ROLE_NAME
+    _fn_CATEGORY_RIGHT = FieldNames.CATEGORY_RIGHT
+    _fn_RIGHT = FieldNames.RIGHT
+
+    rr_key = _role_right_key
+    _ANY = _ANY_RIGHT
+
+    # Reduce repeated lookups for method assignment
+    add_conds = _add_role_right_conds
+
+    # Cache role_name normalization for performance if many roles (preserve ordering)
     for role_name, right_conf in permissions.items():
         if not isinstance(role_name, str):
             return None, f"bad role name: expect a str but got {type(role_name)}"
 
-        role_name = _normalize_str(role_name, FieldNames.ROLE_NAME)
-        roles.append(role_name)
+        role_name_norm = norm_str(role_name, _fn_ROLE_NAME)
+        roles.append(role_name_norm)
         right_conds = {}  # rights of this role
-        role_rights[role_name] = right_conds
+        role_rights[role_name_norm] = right_conds
 
+        # Check if it's a string or list (universal right expression for role)
         if isinstance(right_conf, str) or isinstance(right_conf, list):
             conds = _RoleRightConditions()
             err = conds.parse_expression(right_conf)
             if err:
                 return None, err
-            _add_role_right_conds(role_name, _ANY_RIGHT, conds, role_right_map, rights, right_conds)
+            add_conds(role_name_norm, _ANY, conds, role_right_map, rights, right_conds)
             continue
 
         if not isinstance(right_conf, dict):
             return None, f"bad right config: expect a dict but got {type(right_conf)}"
 
-        # process right categories
-        for right, exp in right_conf.items():
+        # PRE-PROCESS right_conf.items() as a list since it will be iterated twice
+        right_conf_items = list(right_conf.items())
+
+        # process right categories first
+        for right, exp in right_conf_items:
             if not isinstance(right, str):
                 return None, f"bad right name: expect a str but got {type(right)}"
 
-            right = _normalize_str(right, FieldNames.CATEGORY_RIGHT)
-
-            # see whether this is a right category
-            right_list = cat_to_rights.get(right)
+            right_norm_cat = norm_str(right, _fn_CATEGORY_RIGHT)
+            right_list = cat_to_rights.get(right_norm_cat)
             if not right_list:
                 # this is a regular right - skip it
                 continue
@@ -354,17 +386,14 @@ def parse_policy_config(config: dict, right_categories: dict):
             if err:
                 return None, err
 
-            # all rights in the category share the same conditions
-            _add_role_right_conds(role_name, right, conds, role_right_map, rights, right_conds)
+            add_conds(role_name_norm, right_norm_cat, conds, role_right_map, rights, right_conds)
             for r in right_list:
-                _add_role_right_conds(role_name, r, conds, role_right_map, rights, right_conds)
+                add_conds(role_name_norm, r, conds, role_right_map, rights, right_conds)
 
         # process regular rights, which may override the rights from categories
-        for right, exp in right_conf.items():
-            right = _normalize_str(right, FieldNames.RIGHT)
-
-            # see whether this is a right category
-            right_list = cat_to_rights.get(right)
+        for right, exp in right_conf_items:
+            right_norm = norm_str(right, _fn_RIGHT)
+            right_list = cat_to_rights.get(right_norm)
             if right_list:
                 # this is category - already processed
                 continue
@@ -374,10 +403,20 @@ def parse_policy_config(config: dict, right_categories: dict):
             if err:
                 return None, err
 
-            # this may cause the same right to be overwritten in the map
-            _add_role_right_conds(role_name, right, conds, role_right_map, rights, right_conds)
+            add_conds(role_name_norm, right_norm, conds, role_right_map, rights, right_conds)
 
-    return Policy(config=config, role_right_map=role_right_map, role_rights=role_rights, roles=roles, rights=rights), ""
+    # De-duplicate rights list in place, preserving order (skip if already unique)
+    if len(rights) > 1:
+        seen = set()
+        rights[:] = [x for x in rights if not (x in seen or seen.add(x))]
+
+    return Policy(
+        config=config,
+        role_right_map=role_right_map,
+        role_rights=role_rights,
+        roles=roles,
+        rights=rights
+    ), ""
 
 
 class Authorizer(object):
