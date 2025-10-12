@@ -58,13 +58,17 @@ def _cell_fqcn(mode, site_name, token, parent_fqcn):
 
 
 def _to_cell_message(msg: Message, extra=None) -> CellMessage:
-    headers = {_HEADER_MSG_TYPE: msg.msg_type, _HEADER_MSG_ID: msg.msg_id, _HEADER_START_TIME: time.time()}
+    t = time.time()
+    headers = {}
+    headers[_HEADER_MSG_TYPE] = msg.msg_type
+    headers[_HEADER_MSG_ID] = msg.msg_id
+    headers[_HEADER_START_TIME] = t
     if extra:
         headers.update(extra)
     if msg.req_id:
         headers[_HEADER_REQ_ID] = msg.req_id
 
-    return CellMessage(headers=headers, payload=msg.data)
+    return CellMessage(headers, msg.data)
 
 
 def _from_cell_message(cm: CellMessage) -> Message:
