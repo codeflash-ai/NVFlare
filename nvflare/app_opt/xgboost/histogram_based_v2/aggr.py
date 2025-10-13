@@ -27,11 +27,11 @@ class Aggregator:
 
         sample_value = gh_values[sample_id]
         current_value = aggr[bin_id]
-        if current_value == 0:
+        if not current_value:
             # avoid add since sample_value may be cypher-text!
             aggr[bin_id] = sample_value
         else:
-            aggr[bin_id] = self.add(current_value, sample_value)
+            aggr[bin_id] = current_value + sample_value
 
     def aggregate(self, gh_values: list, sample_bin_assignment, num_bins, sample_ids):
         aggr_result = [self.initial_value] * num_bins
