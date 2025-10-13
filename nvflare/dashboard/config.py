@@ -71,8 +71,8 @@ class PropertyManager:
         return self.props.get("server", {})
 
     def get_server_prop(self, key, default=None):
-        props = self.get_server_props()
-        return props.get(key, default)
+        server_props = self.props.get("server", {})
+        return server_props.get(key, default)
 
     def get_admin_props(self):
         return self.props.get("admin", {})
