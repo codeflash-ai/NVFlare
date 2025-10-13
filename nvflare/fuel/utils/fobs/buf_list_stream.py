@@ -18,7 +18,11 @@ class BufListStream:
     def __init__(self, buf_list: list = None):
         self.buffer_list = BufferList(buf_list)
         self.pos = 0
-        self.size = self.buffer_list.get_size()
+        # Avoid sum traversal if buf_list is None or empty for better efficiency
+        if not buf_list:
+            self.size = 0
+        else:
+            self.size = self.buffer_list.get_size()
 
     def getvalue(self):
         return self.buffer_list.get_list()
