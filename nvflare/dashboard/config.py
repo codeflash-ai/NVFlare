@@ -42,16 +42,23 @@ class PropertyManager:
     def __init__(self):
         web_root = get_web_root()
         self.props = {}
+        # Construct all candidate file paths once to reduce redundant computation
         yml_file = os.path.join(web_root, "properties.yml")
+        json_file = os.path.join(web_root, "properties.json")
+
+        # Check for existence of YAML and JSON files only once,
+        # and avoid unnecessary loading/assignment
         if os.path.exists(yml_file):
             with open(yml_file, "r") as f:
-                self.props = yaml.safe_load(f)
-            return
-
-        json_file = os.path.join(web_root, "properties.json")
-        if os.path.exists(json_file):
+                props = yaml.safe_load(f)
+                self.props = props if props else {}
+        elif os.path.exists(json_file):
             with open(json_file, "r") as f:
-                self.props = json.load(f)
+                props = json.load(f)
+                self.props = props if props else {}
+
+        # Cache client props if present, else empty dict (object ref is shared)
+        self._client_props = self.props["client"] if "client" in self.props else {}
 
     def get_project_props(self):
         return self.props.get("project", {})
@@ -61,7 +68,8 @@ class PropertyManager:
         return props.get(key, default)
 
     def get_client_props(self):
-        return self.props.get("client", {})
+        # Access cached client props for faster repeated reads
+        return self._client_props
 
     def get_client_prop(self, key, default=None):
         props = self.get_client_props()
