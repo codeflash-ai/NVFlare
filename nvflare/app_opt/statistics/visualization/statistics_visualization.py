@@ -126,10 +126,6 @@ class Visualization:
         return sum_value
 
     def _get_target_features(self, all_features, white_list_features=None):
-        if white_list_features is None:
-            white_list_features = []
-
-        target_features = white_list_features
         if not white_list_features:
-            target_features = all_features
-        return target_features
+            return all_features
+        return white_list_features
