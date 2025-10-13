@@ -43,15 +43,19 @@ class PropertyManager:
         web_root = get_web_root()
         self.props = {}
         yml_file = os.path.join(web_root, "properties.yml")
-        if os.path.exists(yml_file):
+        try:
             with open(yml_file, "r") as f:
                 self.props = yaml.safe_load(f)
             return
+        except FileNotFoundError:
+            pass
 
         json_file = os.path.join(web_root, "properties.json")
-        if os.path.exists(json_file):
+        try:
             with open(json_file, "r") as f:
                 self.props = json.load(f)
+        except FileNotFoundError:
+            pass
 
     def get_project_props(self):
         return self.props.get("project", {})
