@@ -64,8 +64,8 @@ class PropertyManager:
         return self.props.get("client", {})
 
     def get_client_prop(self, key, default=None):
-        props = self.get_client_props()
-        return props.get(key, default)
+        # Avoids a local variable allocation since get_client_props is cheap and returns a dict
+        return self.props.get("client", {}).get(key, default)
 
     def get_server_props(self):
         return self.props.get("server", {})
