@@ -19,12 +19,13 @@ from nvflare.fuel.utils.import_utils import optional_import
 
 def convert_data(feature_metrics) -> dict:
     converted = {}
-    for statistic in feature_metrics:
-        converted[statistic] = {}
-        for site in feature_metrics[statistic]:
-            for ds in feature_metrics[statistic][site]:
-                site_dataset = f"{site}-{ds}"
-                converted[statistic][site_dataset] = feature_metrics[statistic][site][ds]
+    # Avoid repeated lookups by caching local variables
+    for statistic, sites in feature_metrics.items():
+        stat_map = {}
+        for site, datasets in sites.items():
+            for ds, value in datasets.items():
+                stat_map[f"{site}-{ds}"] = value
+        converted[statistic] = stat_map
     return converted
 
 
