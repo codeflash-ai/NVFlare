@@ -41,17 +41,21 @@ class PropertyManager:
 
     def __init__(self):
         web_root = get_web_root()
-        self.props = {}
+        # Avoid repeated key lookup by pre-initializing props as empty dict
+        props = {}
+        # Use join once and cache paths for efficient existence checks
         yml_file = os.path.join(web_root, "properties.yml")
+        json_file = os.path.join(web_root, "properties.json")
         if os.path.exists(yml_file):
             with open(yml_file, "r") as f:
-                self.props = yaml.safe_load(f)
-            return
-
-        json_file = os.path.join(web_root, "properties.json")
-        if os.path.exists(json_file):
+                props = yaml.safe_load(f)
+        elif os.path.exists(json_file):
             with open(json_file, "r") as f:
-                self.props = json.load(f)
+                props = json.load(f)
+        self.props = props
+
+        # Pre-cache admin_props so get_admin_props does not perform dict lookup each time
+        self._admin_props = self.props.get("admin", {})
 
     def get_project_props(self):
         return self.props.get("project", {})
@@ -75,7 +79,8 @@ class PropertyManager:
         return props.get(key, default)
 
     def get_admin_props(self):
-        return self.props.get("admin", {})
+        # Return cached admin_props Dictionary
+        return self._admin_props
 
     def get_admin_prop(self, key, default=None):
         props = self.get_admin_props()
