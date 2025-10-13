@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 
 class BlobStream(Stream):
     def __init__(self, blob: BytesAlike, headers: Optional[dict]):
+        # Optimize buffer_len for lists with large element counts
         size = self.buffer_len(blob)
         super().__init__(size, headers)
 
@@ -64,7 +65,10 @@ class BlobStream(Stream):
         if not isinstance(buffer, list):
             return len(buffer)
 
-        return sum(len(buf) for buf in buffer)
+        # Use map instead of generator to avoid generator overhead.
+        # Use built-in sum/map/len to improve performance when buffer is a list.
+        # Avoid unnecessary lambda and avoid intermediate generator object
+        return sum(map(len, buffer))
 
 
 class BlobTask:
