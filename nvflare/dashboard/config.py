@@ -57,7 +57,7 @@ class PropertyManager:
         return self.props.get("project", {})
 
     def get_project_prop(self, key, default=None):
-        props = self.get_project_props()
+        props = self.props.get("project", {})
         return props.get(key, default)
 
     def get_client_props(self):
