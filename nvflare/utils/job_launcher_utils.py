@@ -21,16 +21,14 @@ from nvflare.apis.job_launcher_spec import JobProcessArgs
 
 
 def _job_args_str(job_args, arg_names) -> str:
-    result = ""
-    sep = ""
+    parts = []
     for name in arg_names:
         e = job_args.get(name)
         if not e:
             continue
         n, v = e
-        result += f"{sep}{n} {v}"
-        sep = " "
-    return result
+        parts.append(f"{n} {v}")
+    return " ".join(parts)
 
 
 def get_client_job_args(include_exe_module=True, include_set_options=True):
