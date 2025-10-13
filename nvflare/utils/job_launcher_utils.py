@@ -19,6 +19,21 @@ from nvflare.apis.fl_constant import FLContextKey, JobConstants, SystemVarName
 from nvflare.apis.job_def import JobMetaKey
 from nvflare.apis.job_launcher_spec import JobProcessArgs
 
+_CLIENT_JOB_ARGS_BASE = [
+    JobProcessArgs.WORKSPACE,
+    JobProcessArgs.STARTUP_DIR,
+    JobProcessArgs.AUTH_TOKEN,
+    JobProcessArgs.TOKEN_SIGNATURE,
+    JobProcessArgs.SSID,
+    JobProcessArgs.JOB_ID,
+    JobProcessArgs.CLIENT_NAME,
+    JobProcessArgs.PARENT_URL,
+    JobProcessArgs.PARENT_CONN_SEC,
+    JobProcessArgs.TARGET,
+    JobProcessArgs.SCHEME,
+    JobProcessArgs.STARTUP_CONFIG_FILE,
+]
+
 
 def _job_args_str(job_args, arg_names) -> str:
     result = ""
@@ -34,31 +49,14 @@ def _job_args_str(job_args, arg_names) -> str:
 
 
 def get_client_job_args(include_exe_module=True, include_set_options=True):
-    result = []
-    if include_exe_module:
-        result.append(JobProcessArgs.EXE_MODULE)
-
-    result.extend(
-        [
-            JobProcessArgs.WORKSPACE,
-            JobProcessArgs.STARTUP_DIR,
-            JobProcessArgs.AUTH_TOKEN,
-            JobProcessArgs.TOKEN_SIGNATURE,
-            JobProcessArgs.SSID,
-            JobProcessArgs.JOB_ID,
-            JobProcessArgs.CLIENT_NAME,
-            JobProcessArgs.PARENT_URL,
-            JobProcessArgs.PARENT_CONN_SEC,
-            JobProcessArgs.TARGET,
-            JobProcessArgs.SCHEME,
-            JobProcessArgs.STARTUP_CONFIG_FILE,
-        ]
-    )
-
-    if include_set_options:
-        result.append(JobProcessArgs.OPTIONS)
-
-    return result
+    if include_exe_module and include_set_options:
+        return [JobProcessArgs.EXE_MODULE, *_CLIENT_JOB_ARGS_BASE, JobProcessArgs.OPTIONS]
+    elif include_exe_module:
+        return [JobProcessArgs.EXE_MODULE, *_CLIENT_JOB_ARGS_BASE]
+    elif include_set_options:
+        return [*_CLIENT_JOB_ARGS_BASE, JobProcessArgs.OPTIONS]
+    else:
+        return list(_CLIENT_JOB_ARGS_BASE)
 
 
 def generate_client_command(fl_ctx) -> str:
