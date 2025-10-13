@@ -41,20 +41,30 @@ class PropertyManager:
 
     def __init__(self):
         web_root = get_web_root()
-        self.props = {}
         yml_file = os.path.join(web_root, "properties.yml")
+        json_file = os.path.join(web_root, "properties.json")
+
+        props = None
+
         if os.path.exists(yml_file):
             with open(yml_file, "r") as f:
-                self.props = yaml.safe_load(f)
-            return
-
-        json_file = os.path.join(web_root, "properties.json")
-        if os.path.exists(json_file):
+                props = yaml.safe_load(f)
+        elif os.path.exists(json_file):
             with open(json_file, "r") as f:
-                self.props = json.load(f)
+                props = json.load(f)
+
+        # Always assign a dict, even if props is None (safe_load may return None)
+        self.props = props if isinstance(props, dict) else {}
+
+        # Cache the project section for fast repeated lookups
+        project_val = self.props.get("project")
+        if isinstance(project_val, dict):  # project must be a dict for correct semantics
+            self._project_props = project_val
+        else:
+            self._project_props = {}
 
     def get_project_props(self):
-        return self.props.get("project", {})
+        return self._project_props
 
     def get_project_prop(self, key, default=None):
         props = self.get_project_props()
