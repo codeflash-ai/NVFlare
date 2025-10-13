@@ -46,12 +46,15 @@ class PropertyManager:
         if os.path.exists(yml_file):
             with open(yml_file, "r") as f:
                 self.props = yaml.safe_load(f)
+            self._server_props = self.props.get("server", {})
             return
 
         json_file = os.path.join(web_root, "properties.json")
         if os.path.exists(json_file):
             with open(json_file, "r") as f:
                 self.props = json.load(f)
+
+        self._server_props = self.props.get("server", {})
 
     def get_project_props(self):
         return self.props.get("project", {})
@@ -68,7 +71,7 @@ class PropertyManager:
         return props.get(key, default)
 
     def get_server_props(self):
-        return self.props.get("server", {})
+        return self._server_props
 
     def get_server_prop(self, key, default=None):
         props = self.get_server_props()
