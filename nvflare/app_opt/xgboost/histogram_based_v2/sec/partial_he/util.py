@@ -52,7 +52,8 @@ def int_to_ciphertext(d, pubkey):
 
 
 def get_exponent(d):
-    return d.exponent(idx=0)
+    # Direct method call, minimal possible overhead
+    return d.exponent(0)
 
 
 # base64 utils from jwcrypto
