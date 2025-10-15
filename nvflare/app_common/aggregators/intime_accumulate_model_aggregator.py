@@ -25,14 +25,11 @@ from nvflare.app_common.app_constant import AppConstants
 
 
 def _is_nested_aggregation_weights(aggregation_weights):
-    if not aggregation_weights:
+    if not aggregation_weights or not isinstance(aggregation_weights, dict):
         return False
-    if not isinstance(aggregation_weights, dict):
-        return False
-    first_value = next(iter(aggregation_weights.items()))[1]
-    if not isinstance(first_value, dict):
-        return False
-    return True
+    for first_value in aggregation_weights.values():
+        return isinstance(first_value, dict)
+    return False
 
 
 def _get_missing_keys(ref_dict: dict, dict_to_check: dict):
