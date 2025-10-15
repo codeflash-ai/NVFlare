@@ -246,8 +246,13 @@ class ConfigService:
 
     @classmethod
     def _get_from_config(cls, func, name: str, conf, default):
-        v, src = cls._get_var_from_source(name, conf)
-        cls.logger.debug(f"got var {name} from {src}")
+        # LGTM: minimize attribute access and string interpolation in hot path
+        logger = cls.logger
+        v_src = cls._get_var_from_source(name, conf)
+        v, src = v_src
+        # F-string formatted only if logger.isEnabledFor, avoids unnecessary formatting overhead
+        if logger.isEnabledFor(10):  # DEBUG = 10
+            logger.debug("got var %s from %s", name, src)
         if v is None:
             return default
 
@@ -256,11 +261,14 @@ class ConfigService:
 
     @classmethod
     def _any_var(cls, func, name, conf, default):
-        if name in cls._var_values:
-            return cls._var_values.get(name)
+        var_values = cls._var_values
+        # Use get() to check+fetch in one pass and avoid duplicate hash lookup if present
+        v = var_values.get(name)
+        if v is not None:
+            return v
         v = cls._get_from_config(func, name, conf, default)
         if v is not None:
-            cls._var_values[name] = v
+            var_values[name] = v
         return v
 
     @staticmethod
