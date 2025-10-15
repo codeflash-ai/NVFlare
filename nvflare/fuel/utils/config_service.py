@@ -412,11 +412,13 @@ class ConfigService:
     def _to_dict(cls, name: str, v):
         if isinstance(v, dict):
             return v
-
         if isinstance(v, str):
             # assume it's a json str
+            stripped = v.strip()
+            if not (stripped.startswith("{") and stripped.endswith("}")):
+                raise ValueError(f"var {name}'s value '{v}' does not represent a dict")
             try:
-                v2 = json.loads(v)
+                v2 = json.loads(stripped)
             except Exception as e:
                 raise ValueError(f"var {name}'s value '{v}' cannot be converted to dict: {e}")
 
