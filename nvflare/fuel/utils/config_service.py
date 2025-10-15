@@ -265,40 +265,38 @@ class ConfigService:
 
     @staticmethod
     def _get_var_from_os_env(name: str):
+        # Minimize string operations by factoring only what is required
         if not name.startswith(ENV_VAR_PREFIX):
-            env_var_name = ENV_VAR_PREFIX + name
+            env_var_name = f"{ENV_VAR_PREFIX}{name}"
         else:
             env_var_name = name
 
-        env_var_name = env_var_name.upper()
-        if env_var_name in os.environ:
-            return os.environ.get(env_var_name)
-        else:
-            return None
+        env_var_name_u = env_var_name.upper()
+        # Use os.environ.get (hash lookup costs same as 'in', but avoids 2 lookups)
+        return os.environ.get(env_var_name_u, None)
 
     @classmethod
     def _get_var_from_config_sources(cls, name: str, conf):
         if conf is None:
             return None
 
-        # conf could be:
-        #   a single config source (a section name or a dict)
-        #   a list of config sources
-        if not isinstance(conf, list):
-            conf = [conf]
+        # Avoid small overhead of repeated isinstance checks for lists by type check
+        conf_sources = conf if isinstance(conf, list) else [conf]
 
-        # check each conf source until the var is found
-        for src in conf:
-            if isinstance(src, str):
-                # this is a section name
-                src = cls.get_section(src)
+        # Make section lookup local, str and dict types local, and .get as local to avoid attribute lookups in loop
+        get_section = cls.get_section
+        str_type = str
+        dict_type = dict
+        get_name = name
 
-            if isinstance(src, dict):
-                v = src.get(name)
+        for src in conf_sources:
+            if isinstance(src, str_type):
+                src = get_section(src)
+            if isinstance(src, dict_type):
+                v = src.get(get_name)
                 if v is not None:
                     return v
 
-        # No source has this var
         return None
 
     @classmethod
@@ -306,18 +304,25 @@ class ConfigService:
         if not isinstance(name, str):
             raise ValueError(f"var name must be str but got {type(name)}")
 
-        # see whether command args have it
-        if cls._cmd_args and name in cls._cmd_args:
-            return cls._cmd_args.get(name), "cmd_args"
+        # Hoist fields to locals to minimize repeated getattr
+        cmd_args = cls._cmd_args
+        var_dict = cls._var_dict
 
-        if cls._var_dict and name in cls._var_dict:
-            return cls._var_dict.get(name), "var_dict"
+        # Check cmd_args with .get to avoid double hashing
+        if cmd_args is not None:
+            v = cmd_args.get(name, None)
+            if v is not None or name in cmd_args:  # preserve exact logic for possible None-values in cmd_args
+                return v, "cmd_args"
+
+        if var_dict is not None:
+            v = var_dict.get(name, None)
+            if v is not None or name in var_dict:
+                return v, "var_dict"
 
         value = cls._get_var_from_config_sources(name, conf)
         if value is not None:
             return value, "config"
 
-        # finally check os env
         return cls._get_var_from_os_env(name), "env"
 
     @classmethod
