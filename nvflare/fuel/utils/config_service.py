@@ -256,11 +256,14 @@ class ConfigService:
 
     @classmethod
     def _any_var(cls, func, name, conf, default):
-        if name in cls._var_values:
-            return cls._var_values.get(name)
+        # Fast path using __contains__ + direct dict __getitem__ avoids double hashing in .get()
+        # and unnecessary call to .get() if variable is present.
+        cached_vars = cls._var_values  # local ref for speed
+        if name in cached_vars:
+            return cached_vars[name]
         v = cls._get_from_config(func, name, conf, default)
         if v is not None:
-            cls._var_values[name] = v
+            cached_vars[name] = v
         return v
 
     @staticmethod
