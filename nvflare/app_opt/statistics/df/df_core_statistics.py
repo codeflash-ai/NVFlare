@@ -37,8 +37,14 @@ class DFStatisticsCore(Statistics, ABC):
         for ds_name in self.data:
             df = self.data[ds_name]
             results[ds_name] = []
+            dtype_cache = {}
             for feature_name in df:
-                data_type = dtype_to_data_type(df[feature_name].dtype)
+                dtype = df[feature_name].dtype
+                if dtype in dtype_cache:
+                    data_type = dtype_cache[dtype]
+                else:
+                    data_type = dtype_to_data_type(dtype)
+                    dtype_cache[dtype] = data_type
                 results[ds_name].append(Feature(feature_name, data_type))
 
         return results
