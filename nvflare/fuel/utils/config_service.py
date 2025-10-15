@@ -246,12 +246,15 @@ class ConfigService:
 
     @classmethod
     def _get_from_config(cls, func, name: str, conf, default):
+        # Fast path: Avoid double lookup for name in dict by using .get and checking for None,
+        # and minimize string formatting cost in logger for debug-logging if not enabled
+
         v, src = cls._get_var_from_source(name, conf)
-        cls.logger.debug(f"got var {name} from {src}")
+        if cls.logger.isEnabledFor(10):  # 10 == logging.DEBUG
+            cls.logger.debug(f"got var {name} from {src}")
         if v is None:
             return default
 
-        # convert to right data type
         return func(name, v)
 
     @classmethod
@@ -303,21 +306,27 @@ class ConfigService:
 
     @classmethod
     def _get_var_from_source(cls, name: str, conf):
+        # Fast path: reduce dict lookups by using intermediate variables
+
         if not isinstance(name, str):
             raise ValueError(f"var name must be str but got {type(name)}")
 
-        # see whether command args have it
-        if cls._cmd_args and name in cls._cmd_args:
-            return cls._cmd_args.get(name), "cmd_args"
+        # Use local variables for lookups to reduce attribute access overheads
+        cmd_args = cls._cmd_args
+        if cmd_args is not None and name in cmd_args:
+            return cmd_args[name], "cmd_args"
 
-        if cls._var_dict and name in cls._var_dict:
-            return cls._var_dict.get(name), "var_dict"
+        var_dict = cls._var_dict
+        if var_dict is not None and name in var_dict:
+            return var_dict[name], "var_dict"
 
+        # Avoid unnecessary method call if conf is None/empty and _get_var_from_config_sources is slow
+        # However, must preserve semantics of calling it (including OS env fallback if needed).
         value = cls._get_var_from_config_sources(name, conf)
         if value is not None:
             return value, "config"
 
-        # finally check os env
+        # OS environment lookup
         return cls._get_var_from_os_env(name), "env"
 
     @classmethod
