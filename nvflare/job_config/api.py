@@ -36,7 +36,7 @@ class FedApp:
     def __init__(self, app_config: Union[ClientAppConfig, ServerAppConfig]):
         """FedApp handles `ClientAppConfig` and `ServerAppConfig` and allows setting task result or task data filters."""
         self.app_config = app_config
-        self._used_ids = []
+        self._used_ids = set()
 
         # obj_id => comp_id
         # obj_id is the Python's object ID; comp_id is the component ID for job config
@@ -72,9 +72,9 @@ class FedApp:
         if id not in self._used_ids:
             return id
         else:
+            regex = re.compile(r"\d+")
             while id in self._used_ids:
-                # increase integer counts in id
-                cnt = re.search(r"\d+", id)
+                cnt = regex.search(id)
                 if cnt:
                     cnt = cnt.group()
                     id = id.replace(cnt, str(int(cnt) + 1))
@@ -84,7 +84,7 @@ class FedApp:
 
     def generate_tracked_id(self, id: str = "") -> str:
         id = self._generate_id(id)
-        self._used_ids.append(id)
+        self._used_ids.add(id)
         return id
 
     def add_external_script(self, ext_script: str):
