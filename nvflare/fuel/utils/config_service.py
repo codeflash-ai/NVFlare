@@ -153,6 +153,7 @@ class ConfigService:
         Returns: the section of the specified name, or None if the section is not found.
 
         """
+        # No optimization necessary here; dict.get is already optimal for a single lookup.
         return cls._sections.get(name)
 
     @classmethod
@@ -281,22 +282,31 @@ class ConfigService:
         if conf is None:
             return None
 
-        # conf could be:
-        #   a single config source (a section name or a dict)
-        #   a list of config sources
-        if not isinstance(conf, list):
-            conf = [conf]
+        # Avoid creating a new list unless necessary
+        sources = conf if isinstance(conf, list) else [conf]
 
-        # check each conf source until the var is found
-        for src in conf:
-            if isinstance(src, str):
-                # this is a section name
-                src = cls.get_section(src)
+        # Use local bindings for commonly accessed methods to slightly reduce attribute lookups
+        get_section = cls.get_section
 
+        # Eliminate repeated isinstance checks and dict.get lookups
+        for src in sources:
+            # Fast path: dict directly
             if isinstance(src, dict):
                 v = src.get(name)
                 if v is not None:
                     return v
+                continue  # If not found, try next source
+
+            # If it's a string, treat as section name
+            if isinstance(src, str):
+                section = get_section(src)
+                if isinstance(section, dict):
+                    v = section.get(name)
+                    if v is not None:
+                        return v
+                continue
+
+            # Ignore other types
 
         # No source has this var
         return None
