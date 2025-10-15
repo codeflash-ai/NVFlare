@@ -271,10 +271,7 @@ class ConfigService:
             env_var_name = name
 
         env_var_name = env_var_name.upper()
-        if env_var_name in os.environ:
-            return os.environ.get(env_var_name)
-        else:
-            return None
+        return os.environ.get(env_var_name)
 
     @classmethod
     def _get_var_from_config_sources(cls, name: str, conf):
