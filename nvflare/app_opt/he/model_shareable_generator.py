@@ -43,7 +43,7 @@ def add_to_global_weights(new_val, base_weights, v_name):
 
         if isinstance(global_var, np.ndarray):
             global_var = global_var.ravel()
-            n_vars_total = np.size(global_var)
+            n_vars_total = global_var.size
         elif isinstance(global_var, ts.CKKSVector):
             n_vars_total = global_var.size()
         else:
