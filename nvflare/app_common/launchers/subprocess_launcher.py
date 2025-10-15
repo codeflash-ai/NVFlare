@@ -28,33 +28,40 @@ from nvflare.utils.job_launcher_utils import add_custom_dir_to_path
 
 
 def get_line(buffer: bytearray):
-    """Read a line from the binary buffer. It treats all combinations of \n and \r as line breaks.
+    """Read a line from the binary buffer. It treats all combinations of
+    and
+    as line breaks.
 
-    Args:
-        buffer: A binary buffer
+       Args:
+           buffer: A binary buffer
 
-    Returns:
-        (line, remaining): Return the first line as str and the remaining buffer.
-        line is None if no newline found
+       Returns:
+           (line, remaining): Return the first line as str and the remaining buffer.
+           line is None if no newline found
 
     """
     size = len(buffer)
     r = buffer.find(b"\r")
-    if r < 0:
-        r = size + 1
     n = buffer.find(b"\n")
-    if n < 0:
-        n = size + 1
-    index = min(r, n)
 
-    if index >= size:
+    # No newline found, return as original.
+    if r < 0 and n < 0:
         return None, buffer
 
+    # Find the first newline (could be r or n)
+    if r < 0:
+        index = n
+    elif n < 0:
+        index = r
+    else:
+        index = min(r, n)
+
     # if \r and \n are adjacent, treat them as one
-    if abs(r - n) == 1:
-        index = index + 1
+    if r >= 0 and n >= 0 and abs(r - n) == 1:
+        index = max(r, n)
 
     line = buffer[:index].decode().rstrip()
+    # Calculate next buffer start; +1 since we consumed a separator
     if index >= size - 1:
         remaining = bytearray()
     else:
