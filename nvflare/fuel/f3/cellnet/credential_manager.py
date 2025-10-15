@@ -43,6 +43,7 @@ class CredentialManager:
         self.local_endpoint = local_endpoint
         self.cert_cache = {}
         self.lock = threading.Lock()
+        self._ca_cert_obj = None
 
         conn_props = self.local_endpoint.conn_props
         ca_cert_path = conn_props.get(DriverParams.CA_CERT)
@@ -135,7 +136,10 @@ class CredentialManager:
         return serialization.load_pem_private_key(self.local_key, password=None)
 
     def get_ca_cert(self) -> Certificate:
-        return x509.load_pem_x509_certificate(self.ca_cert)
+        if self._ca_cert_obj is not None:
+            return self._ca_cert_obj
+        self._ca_cert_obj = x509.load_pem_x509_certificate(self.ca_cert)
+        return self._ca_cert_obj
 
     @staticmethod
     def read_file(file_name: str):
