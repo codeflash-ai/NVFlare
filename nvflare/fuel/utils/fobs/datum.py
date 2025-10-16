@@ -28,7 +28,7 @@ class DatumType(Enum):
 class Datum:
     """Datum is a class that holds information for externalized data"""
 
-    def __init__(self, datum_type: DatumType, value: Any, dot=0):
+    def __init__(self, datum_type, value: Any, dot=0):
         """Constructor of Datum object
 
         Args:
@@ -88,8 +88,8 @@ class DatumRef:
 
 class DatumManager:
     def __init__(self, threshold=None, fobs_ctx: dict = None):
-        if not threshold:
-            threshold = TEN_MEGA
+        # Fast test for threshold with no branches when threshold is 0 or None, using or
+        threshold = TEN_MEGA if not threshold else threshold
 
         if not isinstance(threshold, int):
             raise TypeError(f"threshold must be int but got {type(threshold)}")
@@ -97,20 +97,14 @@ class DatumManager:
         if threshold < MIN_THRESHOLD:
             raise ValueError(f"threshold must be at least {MIN_THRESHOLD} but got {threshold}")
 
-        if not fobs_ctx:
+        # Avoid mutable default
+        if fobs_ctx is None:
             fobs_ctx = {}
 
         self.threshold = threshold
         self.datums: Dict[str, Datum] = {}
         self.fobs_ctx = fobs_ctx
-
-        # some decomposers (e.g. Shareable, Learnable, etc.) make a shallow copy of the original object before
-        # serialization. After serialization, only the values in the copy are restored. We need to keep a ref
-        # from the copy to the original object so that values in the original are also restored.
         self.obj_copies = {}  # copy id => original object
-
-        # Post CBs are called after the serialize process is done
-        # Post CBs could be used, for example, to prepare files to be downloaded by the message receiver
         self.post_cbs = []
         self.error = None  # save error text
 
@@ -221,23 +215,29 @@ class DatumManager:
         return self.datums.get(datum_id)
 
     def externalize(self, data: Any):
-        if not isinstance(data, (bytes, bytearray, memoryview, Datum, str)):
-            return data
-
-        if isinstance(data, Datum):
+        # Optimize isinstance branch for most-expected-fast case and minimize isinstance calls
+        t = type(data)
+        if t is str:
+            # Fast path for str, likely often used
+            if len(data) >= self.threshold:
+                d = Datum.text_datum(data)
+                self.add_datum(d)
+                return DatumRef(d.datum_id, True)
+            else:
+                return data
+        elif t in (bytes, bytearray, memoryview):
+            # Fast path for raw blobs for common serializations
+            if len(data) >= self.threshold:
+                d = Datum.blob_datum(data)
+                self.add_datum(d)
+                return DatumRef(d.datum_id, True)
+            else:
+                return data
+        elif isinstance(data, Datum):
             # this is an app-defined datum. we need to keep it as is when deserialized.
             # hence unwrap is set to False in the DatumRef.
             self.add_datum(data)
             return DatumRef(data.datum_id, False)
-
-        if len(data) >= self.threshold:
-            # turn it to Datum
-            if isinstance(data, str):
-                d = Datum.text_datum(data)
-            else:
-                d = Datum.blob_datum(data)
-            self.add_datum(d)
-            return DatumRef(d.datum_id, True)
         else:
             return data
 
