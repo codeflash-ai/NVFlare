@@ -114,18 +114,32 @@ class FLModel:
                     self._summary[key] = type(value)
 
     def summary(self):
-        kvs = dict(
-            params=self.params,
-            optimizer_params=self.optimizer_params,
-            metrics=self.metrics,
-            meta=self.meta,
-            params_type=self.params_type,
-            start_round=self.start_round,
-            current_round=self.current_round,
-            total_rounds=self.total_rounds,
-        )
-        self._add_to_summary(kvs)
-        return self._summary
+        # Instead of updating the internal dict each call (which is prone to data staleness and thread safety issues),
+        # just create a fresh summary dict per call.
+        kvs = {
+            "params": self.params,
+            "optimizer_params": self.optimizer_params,
+            "metrics": self.metrics,
+            "meta": self.meta,
+            "params_type": self.params_type,
+            "start_round": self.start_round,
+            "current_round": self.current_round,
+            "total_rounds": self.total_rounds,
+        }
+        summary = {}
+        ParamsType_local = ParamsType
+        for key, value in kvs.items():
+            if value:
+                t = type(value)
+                if t is dict:
+                    summary[key] = len(value)
+                elif t is ParamsType_local:
+                    summary[key] = value
+                elif t is int:
+                    summary[key] = value
+                else:
+                    summary[key] = t
+        return summary
 
     def __repr__(self):
         return str(self.summary())
