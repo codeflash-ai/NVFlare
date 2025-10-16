@@ -603,9 +603,9 @@ def filter_numeric_features(ds_features: Dict[str, List[Feature]]) -> Dict[str, 
         A dict containing numeric features.
     """
     numeric_ds_features = {}
-    for ds_name in ds_features:
-        features: List[Feature] = ds_features[ds_name]
-        n_features = [f for f in features if (f.data_type == DataType.INT or f.data_type == DataType.FLOAT)]
+    numeric_types = (DataType.INT, DataType.FLOAT)
+    for ds_name, features in ds_features.items():
+        n_features = [f for f in features if f.data_type in numeric_types]
         numeric_ds_features[ds_name] = n_features
 
     return numeric_ds_features
