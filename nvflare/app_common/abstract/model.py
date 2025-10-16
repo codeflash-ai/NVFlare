@@ -29,10 +29,8 @@ class ModelLearnableKey(object):
 
 class ModelLearnable(Learnable):
     def is_empty(self):
-        if self.get(ModelLearnableKey.WEIGHTS):
-            return False
-        else:
-            return True
+        # Return True if weights are missing or empty, False otherwise
+        return not self.get(ModelLearnableKey.WEIGHTS)
 
 
 def validate_model_learnable(model_learnable: ModelLearnable) -> str:
