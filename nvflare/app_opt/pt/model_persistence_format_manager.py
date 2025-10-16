@@ -76,11 +76,13 @@ class PTModelPersistenceFormatManager(object):
 
         self._allow_numpy_conversion = allow_numpy_conversion
 
-    def _get_processed_vars(self) -> dict:
-        if self.meta:
-            return self.meta.get(MetaKey.PROCESSED_KEYS, {})
+        if self.meta and isinstance(self.meta, dict):
+            self._cached_processed_vars = self.meta.get(MetaKey.PROCESSED_KEYS, {})
         else:
-            return {}
+            self._cached_processed_vars = {}
+
+    def _get_processed_vars(self) -> dict:
+        return self._cached_processed_vars
 
     def to_model_learnable(self, exclude_vars) -> ModelLearnable:
         processed_vars = self._get_processed_vars()
