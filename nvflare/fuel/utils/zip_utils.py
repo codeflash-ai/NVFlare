@@ -31,9 +31,18 @@ def normpath_for_zip(path):
 
 
 def remove_leading_dotdot(path: str) -> str:
+    # Optimize by avoiding repeated slicing and string building.
+    # Compute the prefix just once.
+    prefix = f"..{os.path.sep}"
+    pl = len(prefix)
     path = str(Path(path))
-    while path.startswith(f"..{os.path.sep}"):
-        path = path[3:]
+    start = 0
+    end = len(path)
+    # Loop over all leading ..[os.sep] using slicing for less string creation.
+    while path.startswith(prefix, start):
+        start += pl
+    if start:
+        return path[start:end]
     return path
 
 
