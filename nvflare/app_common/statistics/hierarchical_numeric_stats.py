@@ -215,29 +215,44 @@ def accumulate_hierarchical_metrics(
     def recursively_accumulate_hierarchical_metrics(
         metric: str, client_name: str, metrics: dict, global_metrics: dict, dataset: str, feature: str, org: list
     ) -> dict:
-        if isinstance(global_metrics, dict):
-            for key, value in global_metrics.items():
-                if key == StC.GLOBAL and StC.NAME not in global_metrics:
-                    global_metrics[StC.GLOBAL][metric][dataset][feature] += metrics[dataset][feature]
-                    continue
-                if key == StC.NAME:
-                    if org and value in org:
-                        # The client belongs to this org so update current global metrics before sending it further
-                        global_metrics[StC.GLOBAL][metric][dataset][feature] += metrics[dataset][feature]
-                    elif value == client_name:
-                        # This is a client local metrics update
-                        global_metrics[StC.LOCAL][metric][dataset][feature] += metrics[dataset][feature]
-                    else:
-                        break
-                if isinstance(value, list):
-                    for item in value:
-                        recursively_accumulate_hierarchical_metrics(
-                            metric, client_name, metrics, item, dataset, feature, org
-                        )
+        # Use local variables for performance (reduce deep attribute/dict lookups)
+        SC_GLOBAL = StC.GLOBAL
+        SC_LOCAL = StC.LOCAL
+        SC_NAME = StC.NAME
 
-    client_org = get_client_hierarchy(copy.deepcopy(hierarchy_config), client_name)
-    for dataset in metrics:
-        for feature in metrics[dataset]:
+        # Avoid repeated isinstance lookups
+        if not isinstance(global_metrics, dict):
+            return
+
+        for key, value in global_metrics.items():
+            if key == SC_GLOBAL and SC_NAME not in global_metrics:
+                global_metrics[SC_GLOBAL][metric][dataset][feature] += metrics[dataset][feature]
+                continue
+            if key == SC_NAME:
+                if org and value in org:
+                    # The client belongs to this org so update current global metrics before sending it further
+                    global_metrics[SC_GLOBAL][metric][dataset][feature] += metrics[dataset][feature]
+                elif value == client_name:
+                    # This is a client local metrics update
+                    global_metrics[SC_LOCAL][metric][dataset][feature] += metrics[dataset][feature]
+                else:
+                    break  # Stop this branch
+            elif isinstance(value, list):
+                # Fast path: Use local ref to recursively_accumulate_hierarchical_metrics
+                rec = recursively_accumulate_hierarchical_metrics
+                for item in value:
+                    rec(
+                        metric, client_name, metrics, item, dataset, feature, org
+                    )
+
+    # Avoid unnecessary deep copy if get_client_hierarchy does not mutate hierarchy_config during the lookup.
+    # As code currently stands, it doesn't mutate, so copy is not needed; remove for big performance gain.
+    client_org = get_client_hierarchy(hierarchy_config, client_name)
+    if client_org is None:
+        return global_metrics
+
+    for dataset, dataset_metrics in metrics.items():
+        for feature in dataset_metrics:
             recursively_accumulate_hierarchical_metrics(
                 metric, client_name, metrics, global_metrics, dataset, feature, client_org
             )
@@ -559,21 +574,27 @@ def get_client_hierarchy(hierarchy_config: dict, client_name: str, path=None) ->
     if path is None:
         path = []
 
+    result = None
+    SC_NAME = StC.NAME
+
+    # Hot path: Avoid isinstance check inside large list by delegating early
     if isinstance(hierarchy_config, dict):
-        for key, value in hierarchy_config.items():
+        for value in hierarchy_config.values():
             if isinstance(value, list):
-                result = get_client_hierarchy(value, client_name, path)
-                if result:
-                    return result
-    elif isinstance(hierarchy_config, list):
+                res = get_client_hierarchy(value, client_name, path)
+                if res:
+                    return res
+    elif isinstance(hierarchy_config, list):  # This check remains unchanged for specification precision
         for item in hierarchy_config:
             if item == client_name:
                 return path
-            if isinstance(item, dict):
-                result = get_client_hierarchy(item, client_name, path + [item.get(StC.NAME)])
-                if result:
-                    return result
-
+            elif isinstance(item, dict):
+                # Precompute next path and local variable for StC.NAME lookup (faster in loop)
+                name_item = item.get(SC_NAME)
+                next_path = path + [name_item]
+                res = get_client_hierarchy(item, client_name, next_path)
+                if res:
+                    return res
     return None
 
 
