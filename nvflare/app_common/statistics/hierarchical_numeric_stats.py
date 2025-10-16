@@ -59,16 +59,28 @@ def create_output_structure(
         A dict containing hierarchical global stats structure.
     """
 
+    # Fast, memory-efficient deepcopy for dicts/lists
+    def _fast_deepcopy(obj):
+        if isinstance(obj, dict):
+            return {k: _fast_deepcopy(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [_fast_deepcopy(v) for v in obj]
+        else:
+            return obj
+
     def recursively_add_values(structure: dict, value_json: dict, metric_task: str, ordered_metrics: dict):
         if isinstance(structure, dict):
-            new_items = {}
-            for key, value in list(structure.items()):
+            # Avoid creating a list() from .items() since we're not mutating keys during iteration
+            new_items = None
+            for key, value in structure.items():
                 if key == StC.NAME:
                     continue
                 if isinstance(value, list):
-                    if key not in new_items:
+                    if new_items is None:
+                        new_items = {}
                         new_items[StC.GLOBAL] = get_initial_structure(value_json, ordered_metrics)
-                    for i, item in enumerate(value):
+                    for i in range(len(value)):
+                        item = value[i]
                         if isinstance(item, str):
                             value[i] = {
                                 StC.NAME: item,
@@ -78,13 +90,15 @@ def create_output_structure(
                             recursively_add_values(item, value_json, metric_task, ordered_metrics)
                 else:
                     recursively_add_values(value, value_json, metric_task, ordered_metrics)
-            structure.update(new_items)
+            if new_items is not None:
+                structure.update(new_items)
         elif isinstance(structure, list):
             for item in structure:
                 recursively_add_values(item, value_json, metric_task, ordered_metrics)
         return structure
 
-    filled_structure = copy.deepcopy(hierarchy_config)
+    # Use fast deepcopy implementation for filled_structure
+    filled_structure = _fast_deepcopy(hierarchy_config)
     final_strcture = recursively_add_values(filled_structure, client_metrics, metric_task, ordered_metrics)
     return final_strcture
 
