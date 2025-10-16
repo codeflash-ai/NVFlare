@@ -42,7 +42,7 @@ class MetaKey(FLMetaKey):
 class FLModel:
     def __init__(
         self,
-        params_type: Union[None, str, ParamsType] = None,
+        params_type: Union[None, str, "ParamsType"] = None,
         params: Any = None,
         optimizer_params: Any = None,
         metrics: Optional[Dict] = None,
@@ -114,17 +114,94 @@ class FLModel:
                     self._summary[key] = type(value)
 
     def summary(self):
-        kvs = dict(
-            params=self.params,
-            optimizer_params=self.optimizer_params,
-            metrics=self.metrics,
-            meta=self.meta,
-            params_type=self.params_type,
-            start_round=self.start_round,
-            current_round=self.current_round,
-            total_rounds=self.total_rounds,
-        )
-        self._add_to_summary(kvs)
+        # Instead of recreating self._summary by incrementally writing to it,
+        # build a new dict and assign, minimizing operations and object churn.
+        params = self.params
+        optimizer_params = self.optimizer_params
+        metrics = self.metrics
+        meta = self.meta
+        params_type = self.params_type
+        start_round = self.start_round
+        current_round = self.current_round
+        total_rounds = self.total_rounds
+
+        summary: dict = {}
+
+        # Inline the logic from _add_to_summary to avoid expensive multiple dict operations
+        if params:
+            if isinstance(params, dict):
+                summary["params"] = len(params)
+            elif isinstance(params, ParamsType):
+                summary["params"] = params
+            elif isinstance(params, int):
+                summary["params"] = params
+            else:
+                summary["params"] = type(params)
+        if optimizer_params:
+            if isinstance(optimizer_params, dict):
+                summary["optimizer_params"] = len(optimizer_params)
+            elif isinstance(optimizer_params, ParamsType):
+                summary["optimizer_params"] = optimizer_params
+            elif isinstance(optimizer_params, int):
+                summary["optimizer_params"] = optimizer_params
+            else:
+                summary["optimizer_params"] = type(optimizer_params)
+        if metrics:
+            if isinstance(metrics, dict):
+                summary["metrics"] = len(metrics)
+            elif isinstance(metrics, ParamsType):
+                summary["metrics"] = metrics
+            elif isinstance(metrics, int):
+                summary["metrics"] = metrics
+            else:
+                summary["metrics"] = type(metrics)
+        if meta:
+            if isinstance(meta, dict):
+                summary["meta"] = len(meta)
+            elif isinstance(meta, ParamsType):
+                summary["meta"] = meta
+            elif isinstance(meta, int):
+                summary["meta"] = meta
+            else:
+                summary["meta"] = type(meta)
+        if params_type:
+            if isinstance(params_type, dict):
+                summary["params_type"] = len(params_type)
+            elif isinstance(params_type, ParamsType):
+                summary["params_type"] = params_type
+            elif isinstance(params_type, int):
+                summary["params_type"] = params_type
+            else:
+                summary["params_type"] = type(params_type)
+        if start_round:
+            if isinstance(start_round, dict):
+                summary["start_round"] = len(start_round)
+            elif isinstance(start_round, ParamsType):
+                summary["start_round"] = start_round
+            elif isinstance(start_round, int):
+                summary["start_round"] = start_round
+            else:
+                summary["start_round"] = type(start_round)
+        if current_round:
+            if isinstance(current_round, dict):
+                summary["current_round"] = len(current_round)
+            elif isinstance(current_round, ParamsType):
+                summary["current_round"] = current_round
+            elif isinstance(current_round, int):
+                summary["current_round"] = current_round
+            else:
+                summary["current_round"] = type(current_round)
+        if total_rounds:
+            if isinstance(total_rounds, dict):
+                summary["total_rounds"] = len(total_rounds)
+            elif isinstance(total_rounds, ParamsType):
+                summary["total_rounds"] = total_rounds
+            elif isinstance(total_rounds, int):
+                summary["total_rounds"] = total_rounds
+            else:
+                summary["total_rounds"] = type(total_rounds)
+
+        self._summary = summary
         return self._summary
 
     def __repr__(self):
