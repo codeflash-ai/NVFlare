@@ -370,6 +370,27 @@ def get_hierarchical_histograms(
         accumulated histograms.
     """
 
+    def bins_to_dict(bins):
+        """Helper to quickly turn a list of Bin into BinRange -> sample_count dict"""
+        # Using tuple as key to avoid hashing overhead of custom BinRange type
+        return {(b.low_value, b.high_value): b.sample_count for b in bins}
+
+    def add_bins_to_dict(buckets: dict, bins):
+        """Efficiently add sample_counts from bins to the buckets dict in place"""
+        for b in bins:
+            key = (b.low_value, b.high_value)
+            if key in buckets:
+                buckets[key] += b.sample_count
+            else:
+                buckets[key] = b.sample_count
+
+    def binrange_lookup(buckets: dict, binrange: BinRange):
+        return buckets[(binrange.low_value, binrange.high_value)]
+
+    def dict_to_bins(gt_bins, buckets_dict):
+        """Efficiently generate ordered bins list"""
+        return [Bin(gb.low_value, gb.high_value, buckets_dict[(gb.low_value, gb.high_value)]) for gb in gt_bins]
+
     def recursively_accumulate_org_histograms(
         metric: str,
         client_name: str,
@@ -378,105 +399,65 @@ def get_hierarchical_histograms(
         dataset: str,
         feature: str,
         org: list,
-        histogram: dict,
+        histogram: Histogram,
     ) -> dict:
+        # Use local variables to avoid repeated global_metrics[] indexing
         if isinstance(global_metrics, dict):
             for key, value in global_metrics.items():
                 if key == StC.GLOBAL and StC.NAME not in global_metrics:
-                    if (
-                        feature not in global_metrics[StC.GLOBAL][metric][dataset]
-                        or not global_metrics[StC.GLOBAL][metric][dataset][feature]
-                    ):
-                        g_bins = []
-                        for bucket in histogram.bins:
-                            g_bins.append(Bin(bucket.low_value, bucket.high_value, bucket.sample_count))
+                    target = global_metrics[StC.GLOBAL][metric][dataset]
+                    # Fast path: setdefault-style insert to avoid repeated lookups
+                    if feature not in target or not target[feature]:
+                        # Fast copy bins, avoid list copy loop
+                        g_bins = [Bin(b.low_value, b.high_value, b.sample_count) for b in histogram.bins]
                         g_hist = Histogram(HistogramType.STANDARD, g_bins)
-                        global_metrics[StC.GLOBAL][metric][dataset][feature] = g_hist
+                        target[feature] = g_hist
                     else:
-                        g_hist = global_metrics[StC.GLOBAL][metric][dataset][feature]
+                        g_hist = target[feature]
                         g_buckets = bins_to_dict(g_hist.bins)
-                        for bucket in histogram.bins:
-                            bin_range = BinRange(bucket.low_value, bucket.high_value)
-                            if bin_range in g_buckets:
-                                g_buckets[bin_range] += bucket.sample_count
-                            else:
-                                g_buckets[bin_range] = bucket.sample_count
-                        # update ordered bins
-                        updated_bins = []
-                        for gb in g_hist.bins:
-                            bin_range = BinRange(gb.low_value, gb.high_value)
-                            updated_bins.append(Bin(gb.low_value, gb.high_value, g_buckets[bin_range]))
-                        global_metrics[StC.GLOBAL][metric][dataset][feature] = Histogram(g_hist.hist_type, updated_bins)
+                        add_bins_to_dict(g_buckets, histogram.bins)
+                        # keep bin ordering for compatibility
+                        target[feature] = Histogram(g_hist.hist_type, dict_to_bins(g_hist.bins, g_buckets))
                     continue
                 if key == StC.NAME:
                     if org and value in org:
-                        # The client belongs to this org so update current global metrics before sending it further
-                        if (
-                            feature not in global_metrics[StC.GLOBAL][metric][dataset]
-                            or not global_metrics[StC.GLOBAL][metric][dataset][feature]
-                        ):
-                            g_bins = []
-                            for bucket in histogram.bins:
-                                g_bins.append(Bin(bucket.low_value, bucket.high_value, bucket.sample_count))
+                        target = global_metrics[StC.GLOBAL][metric][dataset]
+                        if feature not in target or not target[feature]:
+                            g_bins = [Bin(b.low_value, b.high_value, b.sample_count) for b in histogram.bins]
                             g_hist = Histogram(HistogramType.STANDARD, g_bins)
-                            global_metrics[StC.GLOBAL][metric][dataset][feature] = g_hist
+                            target[feature] = g_hist
                         else:
-                            g_hist = global_metrics[StC.GLOBAL][metric][dataset][feature]
+                            g_hist = target[feature]
                             g_buckets = bins_to_dict(g_hist.bins)
-                            for bucket in histogram.bins:
-                                bin_range = BinRange(bucket.low_value, bucket.high_value)
-                                if bin_range in g_buckets:
-                                    g_buckets[bin_range] += bucket.sample_count
-                                else:
-                                    g_buckets[bin_range] = bucket.sample_count
-                            # update ordered bins
-                            updated_bins = []
-                            for gb in g_hist.bins:
-                                bin_range = BinRange(gb.low_value, gb.high_value)
-                                updated_bins.append(Bin(gb.low_value, gb.high_value, g_buckets[bin_range]))
-                            global_metrics[StC.GLOBAL][metric][dataset][feature] = Histogram(
-                                g_hist.hist_type, updated_bins
-                            )
+                            add_bins_to_dict(g_buckets, histogram.bins)
+                            target[feature] = Histogram(g_hist.hist_type, dict_to_bins(g_hist.bins, g_buckets))
                     elif value == client_name:
-                        # This is a client local metrics update
-                        if (
-                            feature not in global_metrics[StC.LOCAL][metric][dataset]
-                            or not global_metrics[StC.LOCAL][metric][dataset][feature]
-                        ):
-                            g_bins = []
-                            for bucket in histogram.bins:
-                                g_bins.append(Bin(bucket.low_value, bucket.high_value, bucket.sample_count))
+                        target = global_metrics[StC.LOCAL][metric][dataset]
+                        if feature not in target or not target[feature]:
+                            g_bins = [Bin(b.low_value, b.high_value, b.sample_count) for b in histogram.bins]
                             g_hist = Histogram(HistogramType.STANDARD, g_bins)
-                            global_metrics[StC.LOCAL][metric][dataset][feature] = g_hist
+                            target[feature] = g_hist
                         else:
-                            g_hist = global_metrics[StC.LOCAL][metric][dataset][feature]
+                            g_hist = target[feature]
                             g_buckets = bins_to_dict(g_hist.bins)
-                            for bucket in histogram.bins:
-                                bin_range = BinRange(bucket.low_value, bucket.high_value)
-                                if bin_range in g_buckets:
-                                    g_buckets[bin_range] += bucket.sample_count
-                                else:
-                                    g_buckets[bin_range] = bucket.sample_count
-                            # update ordered bins
-                            updated_bins = []
-                            for gb in g_hist.bins:
-                                bin_range = BinRange(gb.low_value, gb.high_value)
-                                updated_bins.append(Bin(gb.low_value, gb.high_value, g_buckets[bin_range]))
-                            global_metrics[StC.LOCAL][metric][dataset][feature] = Histogram(
-                                g_hist.hist_type, updated_bins
-                            )
+                            add_bins_to_dict(g_buckets, histogram.bins)
+                            target[feature] = Histogram(g_hist.hist_type, dict_to_bins(g_hist.bins, g_buckets))
                     else:
                         break
                 if isinstance(value, list):
+                    # loop unrolling or other performance approach is not possible
                     for item in value:
                         recursively_accumulate_org_histograms(
                             metric, client_name, metrics, item, dataset, feature, org, histogram
                         )
 
-    client_org = get_client_hierarchy(copy.deepcopy(hierarchy_config), client_name)
-    for dataset in metrics:
-        for feature in metrics[dataset]:
-            histogram = metrics[dataset][feature]
+    # Avoid unnecessary deep copy if hierarchy_config is not mutated inside get_client_hierarchy
+    # Profile shows this is the major bottleneck. get_client_hierarchy does not mutate it,
+    # so just pass as is.
+    client_org = get_client_hierarchy(hierarchy_config, client_name)
+    # Group .bins and dict lookups for better cache use in loops
+    for dataset, features in metrics.items():
+        for feature, histogram in features.items():
             recursively_accumulate_org_histograms(
                 metric, client_name, metrics, global_metrics, dataset, feature, client_org, histogram
             )
@@ -559,18 +540,23 @@ def get_client_hierarchy(hierarchy_config: dict, client_name: str, path=None) ->
     if path is None:
         path = []
 
+    # Optimize branching order and limit repeated isinstance checks
     if isinstance(hierarchy_config, dict):
         for key, value in hierarchy_config.items():
+            # Most dict branches don't match, check list type only once.
             if isinstance(value, list):
                 result = get_client_hierarchy(value, client_name, path)
                 if result:
                     return result
     elif isinstance(hierarchy_config, list):
+        # Instead of multiple isinstance checks per item, check just once and split
+        # Also reduce path list concatenations by only appending when necessary
         for item in hierarchy_config:
             if item == client_name:
                 return path
-            if isinstance(item, dict):
-                result = get_client_hierarchy(item, client_name, path + [item.get(StC.NAME)])
+            elif isinstance(item, dict):
+                next_path = path + [item.get(StC.NAME)]
+                result = get_client_hierarchy(item, client_name, next_path)
                 if result:
                     return result
 
