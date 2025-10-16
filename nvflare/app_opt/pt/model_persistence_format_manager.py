@@ -25,6 +25,8 @@ from nvflare.app_common.abstract.model import (
 )
 from nvflare.app_common.app_constant import ModelFormat
 
+_PT_CHECKPOINT = ModelFormat.PT_CHECKPOINT
+
 
 class PTModelPersistenceFormatManager(object):
 
@@ -63,13 +65,13 @@ class PTModelPersistenceFormatManager(object):
             self.train_conf = data.get(self.PERSISTENCE_KEY_TRAIN_CONF, None)
 
             # we need to keep other props, if any, so they can be kept when persisted
-            for k, v in data.items():
-                if k not in [
-                    self.PERSISTENCE_KEY_MODEL,
-                    self.PERSISTENCE_KEY_META_PROPS,
-                    self.PERSISTENCE_KEY_TRAIN_CONF,
-                ]:
-                    self.other_props[k] = v
+            excluded_keys = {
+                self.PERSISTENCE_KEY_MODEL,
+                self.PERSISTENCE_KEY_META_PROPS,
+                self.PERSISTENCE_KEY_TRAIN_CONF,
+            }
+            # Use dictionary comprehension for better performance.
+            self.other_props = {k: v for k, v in data.items() if k not in excluded_keys}
 
         if not self.train_conf:
             self.train_conf = default_train_conf
@@ -141,4 +143,4 @@ class PTModelPersistenceFormatManager(object):
 
     @staticmethod
     def get_persist_model_format():
-        return ModelFormat.PT_CHECKPOINT
+        return _PT_CHECKPOINT
