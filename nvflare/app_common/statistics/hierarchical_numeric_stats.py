@@ -272,43 +272,47 @@ def get_hierarchical_mins_or_maxs(
         org: list,
         op: str,
     ) -> dict:
-        if isinstance(global_metrics, dict):
-            for key, value in global_metrics.items():
-                if key == StC.GLOBAL and StC.NAME not in global_metrics:
-                    if global_metrics[StC.GLOBAL][metric][dataset][feature]:
-                        global_metrics[StC.GLOBAL][metric][dataset][feature] = op(
-                            global_metrics[StC.GLOBAL][metric][dataset][feature], metrics[dataset][feature]
-                        )
-                    else:
-                        global_metrics[StC.GLOBAL][metric][dataset][feature] = metrics[dataset][feature]
-                    continue
-                if key == StC.NAME:
-                    if org and value in org:
-                        # The client belongs to this org so update current global metrics before sending it further
-                        if global_metrics[StC.GLOBAL][metric][dataset][feature]:
-                            global_metrics[StC.GLOBAL][metric][dataset][feature] = op(
-                                global_metrics[StC.GLOBAL][metric][dataset][feature], metrics[dataset][feature]
-                            )
-                        else:
-                            global_metrics[StC.GLOBAL][metric][dataset][feature] = metrics[dataset][feature]
-                    elif value == client_name:
-                        # This is a client local metrics update
-                        global_metrics[StC.LOCAL][metric][dataset][feature] = metrics[dataset][feature]
-                    else:
-                        break
-                if isinstance(value, list):
-                    for item in value:
-                        recursively_update_org_mins_or_maxs(
-                            metric, client_name, metrics, item, dataset, feature, org, op
-                        )
+        if not isinstance(global_metrics, dict):
+            return
 
-    if metric == "min":
-        op = min
-    else:
-        op = max
-    client_org = get_client_hierarchy(copy.deepcopy(hierarchy_config), client_name)
-    for dataset in metrics:
-        for feature in metrics[dataset]:
+        # Pull keys and values out once for efficiency
+        items = global_metrics.items()
+        for key, value in items:
+            if key == StC.GLOBAL and StC.NAME not in global_metrics:
+                gm_g = global_metrics[StC.GLOBAL][metric][dataset]
+                gm_list = gm_g[feature]
+                m_list = metrics[dataset][feature]
+                if gm_list:
+                    global_metrics[StC.GLOBAL][metric][dataset][feature] = op(gm_list, m_list)
+                else:
+                    global_metrics[StC.GLOBAL][metric][dataset][feature] = m_list
+                continue
+            if key == StC.NAME:
+                if org and value in org:
+                    gm_g = global_metrics[StC.GLOBAL][metric][dataset]
+                    gm_list = gm_g[feature]
+                    m_list = metrics[dataset][feature]
+                    if gm_list:
+                        global_metrics[StC.GLOBAL][metric][dataset][feature] = op(gm_list, m_list)
+                    else:
+                        global_metrics[StC.GLOBAL][metric][dataset][feature] = m_list
+                elif value == client_name:
+                    global_metrics[StC.LOCAL][metric][dataset][feature] = metrics[dataset][feature]
+                else:
+                    break
+            if isinstance(value, list):
+                # Use direct function reference instead of redeclaring
+                rec = recursively_update_org_mins_or_maxs
+                for item in value:
+                    rec(metric, client_name, metrics, item, dataset, feature, org, op)
+
+    # Optimization: cache the op function directly using a dict mapping
+    op = min if metric == "min" else max
+
+    # Major Optimization: avoid unnecessary deepcopy by searching for client hierarchy with a non-mutating search
+    client_org = _get_client_hierarchy_no_copy(hierarchy_config, client_name)
+    for dataset, features in metrics.items():
+        for feature in features:
             recursively_update_org_mins_or_maxs(
                 metric, client_name, metrics, global_metrics, dataset, feature, client_org, op
             )
@@ -609,3 +613,26 @@ def filter_numeric_features(ds_features: Dict[str, List[Feature]]) -> Dict[str, 
         numeric_ds_features[ds_name] = n_features
 
     return numeric_ds_features
+
+def _get_client_hierarchy_no_copy(hierarchy_config: dict, client_name: str, path=None) -> list:
+    """Non-copying helper for get_client_hierarchy, returns same behavior but without deepcopy."""
+    if path is None:
+        path = []
+
+    cfg = hierarchy_config
+    if isinstance(cfg, dict):
+        for value in cfg.values():
+            if isinstance(value, list):
+                result = _get_client_hierarchy_no_copy(value, client_name, path)
+                if result:
+                    return result
+    elif isinstance(cfg, list):
+        for item in cfg:
+            if item == client_name:
+                return path
+            if isinstance(item, dict):
+                result = _get_client_hierarchy_no_copy(item, client_name, path + [item.get(StC.NAME)])
+                if result:
+                    return result
+
+    return None
