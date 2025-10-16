@@ -88,8 +88,8 @@ class DatumRef:
 
 class DatumManager:
     def __init__(self, threshold=None, fobs_ctx: dict = None):
-        if not threshold:
-            threshold = TEN_MEGA
+        # Avoid repeated global lookups and duplicated code paths for defaults
+        threshold = threshold if threshold is not None else TEN_MEGA
 
         if not isinstance(threshold, int):
             raise TypeError(f"threshold must be int but got {type(threshold)}")
@@ -97,11 +97,11 @@ class DatumManager:
         if threshold < MIN_THRESHOLD:
             raise ValueError(f"threshold must be at least {MIN_THRESHOLD} but got {threshold}")
 
-        if not fobs_ctx:
-            fobs_ctx = {}
+        # Avoid unnecessary empty dicts as default args
+        fobs_ctx = fobs_ctx if fobs_ctx is not None else {}
 
         self.threshold = threshold
-        self.datums: Dict[str, Datum] = {}
+        self.datums: Dict[str, "Datum"] = {}
         self.fobs_ctx = fobs_ctx
 
         # some decomposers (e.g. Shareable, Learnable, etc.) make a shallow copy of the original object before
@@ -178,13 +178,17 @@ class DatumManager:
 
         """
         # must guarantee that all post_cbs are called!
+        post_cbs = self.post_cbs  # local var for loop speed (ref, no copy)
         i = 0
+        length = len(post_cbs)
         while True:
             # we cannot use a simple for-loop here since a cb could register additional CBs during processing!
-            if i >= len(self.post_cbs):
-                return
+            if i >= length:
+                length = len(post_cbs)
+                if i >= length:
+                    return
 
-            cb, cb_kwargs = self.post_cbs[i]
+            cb, cb_kwargs = post_cbs[i]
             i += 1
             try:
                 cb(self, **cb_kwargs)
