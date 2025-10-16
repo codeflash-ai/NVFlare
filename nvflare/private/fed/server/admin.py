@@ -36,29 +36,34 @@ from nvflare.private.admin_defs import Message
 from nvflare.private.defs import ERROR_MSG_PREFIX, RequestHeader
 from nvflare.private.fed.server.message_send import ClientReply, send_requests
 
+_PROPS_TO_COPY = (
+    ConnProps.EVENT_ID,
+    ConnProps.USER_NAME,
+    ConnProps.USER_ROLE,
+    ConnProps.USER_ORG,
+    ConnProps.SUBMITTER_NAME,
+    ConnProps.SUBMITTER_ORG,
+    ConnProps.SUBMITTER_ROLE,
+)
+
 
 def new_message(conn: Connection, topic, body, require_authz: bool) -> Message:
     msg = Message(topic=topic, body=body)
 
     cmd_entry = conn.get_prop(ConnProps.CMD_ENTRY)
     if cmd_entry:
-        msg.set_header(RequestHeader.ADMIN_COMMAND, cmd_entry.name)
-        msg.set_header(RequestHeader.REQUIRE_AUTHZ, str(require_authz).lower())
+        # Locally bind set_header for reuse
+        set_header = msg.set_header
+        set_header(RequestHeader.ADMIN_COMMAND, cmd_entry.name)
+        set_header(RequestHeader.REQUIRE_AUTHZ, str(require_authz).lower())
+    else:
+        set_header = msg.set_header  # always needed for main loop too
 
-    props_to_copy = [
-        ConnProps.EVENT_ID,
-        ConnProps.USER_NAME,
-        ConnProps.USER_ROLE,
-        ConnProps.USER_ORG,
-        ConnProps.SUBMITTER_NAME,
-        ConnProps.SUBMITTER_ORG,
-        ConnProps.SUBMITTER_ROLE,
-    ]
-
-    for p in props_to_copy:
-        prop = conn.get_prop(p, default=None)
+    get_prop = conn.get_prop  # cache attribute to local (hot path)
+    for p in _PROPS_TO_COPY:
+        prop = get_prop(p, default=None)
         if prop:
-            msg.set_header(p, prop)
+            set_header(p, prop)
 
     return msg
 
