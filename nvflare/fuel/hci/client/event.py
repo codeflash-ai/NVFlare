@@ -42,9 +42,7 @@ class EventPropKey:
 class EventContext(SimpleContext):
     def get_custom_prop(self, key: str, default):
         props = self.get_prop(EventPropKey.CUSTOM_PROPS)
-        if not props:
-            return default
-        return props.get(key, default)
+        return (props if props else {}).get(key, default)
 
     def set_custom_prop(self, key: str, value):
         props = self.get_prop(EventPropKey.CUSTOM_PROPS)
