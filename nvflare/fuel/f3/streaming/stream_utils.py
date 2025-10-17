@@ -88,12 +88,11 @@ class FastBuffer:
         Once this method is called, append() may not work any longer, since the buffer may have been exported"""
 
         if self.capacity == self.size:
-            result = self.buffer
-        else:
-            view = wrap_view(self.buffer)
-            result = view[0 : self.size]
-
-        return result
+            return self.buffer
+        # Avoid wrap_view indirection for bytearray: memoryview(bytearray)[0:size]
+        # This saves a function call and is faster in tight loops
+        # 'self.buffer' is always a bytearray, ensure direct slicing.
+        return memoryview(self.buffer)[: self.size]
 
     def append(self, buf: BytesAlike):
         """Fast append by doubling the size of the buffer when it runs out"""
