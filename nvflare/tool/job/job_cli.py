@@ -621,7 +621,8 @@ def dst_app_path(job_folder: str, app_name="app"):
 
 
 def dst_config_path(job_folder, config_filename, app_name: str = "app"):
-    config_dir = get_config_dir(job_folder, app_name)
+    # Directly inline get_config_dir to reduce function call overhead and avoid redundant joins.
+    config_dir = os.path.join(job_folder, app_name, "config")
     dst_path = os.path.join(config_dir, config_filename)
     return dst_path
 
