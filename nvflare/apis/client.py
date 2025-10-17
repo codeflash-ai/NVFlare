@@ -85,15 +85,17 @@ class Client:
         """
         r = {ClientDictKey.NAME: self.name}
 
-        fqcn = self.get_fqcn()
-        if fqcn != self.name:
+        name = self.name
+
+        fqcn = self.props.get(ClientPropKey.FQCN)
+        if fqcn != name:
             r[ClientDictKey.FQCN] = fqcn
 
-        fqsn = self.get_fqsn()
-        if fqsn != self.name:
+        fqsn = self.props.get(ClientPropKey.FQSN)
+        if fqsn != name:
             r[ClientDictKey.FQSN] = fqsn
 
-        is_leaf = self.get_is_leaf()
+        is_leaf = self.props.get(ClientPropKey.IS_LEAF)
         if not is_leaf:
             r[ClientDictKey.IS_LEAF] = False
 
