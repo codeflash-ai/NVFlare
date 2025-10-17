@@ -56,7 +56,9 @@ class BinDecomposer(fobs.Decomposer):
         return [b.low_value, b.high_value, b.sample_count]
 
     def recompose(self, data: list, manager: DatumManager = None) -> Bin:
-        return Bin(data[0], data[1], data[2])
+        # Avoid unpacking overhead in Bin(), call __new__ directly for slight speedup
+        # Faster and uses less memory than creating a tuple for unpacking
+        return Bin.__new__(Bin, data[0], data[1], data[2])
 
 
 class BinRangeDecomposer(fobs.Decomposer):
