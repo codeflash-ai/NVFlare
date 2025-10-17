@@ -34,7 +34,11 @@ class NumpyScalarDecomposer(fobs.Decomposer, ABC):
         return target.item()
 
     def recompose(self, data: Any, manager: DatumManager = None) -> np.ndarray:
-        return self.supported_type()(data)
+        try:
+            return self._cached_supported_type(data)
+        except AttributeError:
+            self._cached_supported_type = self.supported_type()
+            return self._cached_supported_type(data)
 
 
 class Float64ScalarDecomposer(NumpyScalarDecomposer):
