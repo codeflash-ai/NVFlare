@@ -82,7 +82,11 @@ class FLSnapshot:
         Returns: Snapshot of the Run
 
         """
-        return self.run_snapshots.get(job_id)
+        # Using __getitem__ avoids the method call overhead of .get() in CPython.
+        try:
+            return self.run_snapshots[job_id]
+        except KeyError:
+            return None
 
     def remove_snapshot(self, job_id: str):
         """Remove the RunSnapshot of job_id from the FLSnapshot.
