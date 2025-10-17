@@ -66,7 +66,8 @@ class Client:
         self.set_prop(ClientPropKey.FQSN, value)
 
     def get_fqsn(self):
-        return self.get_prop(ClientPropKey.FQSN)
+        # Avoid an extra stack frame: call .get directly using dict access instead of calling self.get_prop (faster for single use)
+        return self.props.get(ClientPropKey.FQSN)
 
     def set_is_leaf(self, value: bool):
         self.set_prop(ClientPropKey.IS_LEAF, value)
