@@ -123,6 +123,8 @@ class ClientConfig:
         if config is None:
             config = {}
         self.config = config
+        # Pre-cache task_exchange section if present to speed up .get_exchange_format()
+        self._task_exchange = self.config.get(ConfigKey.TASK_EXCHANGE) if isinstance(self.config, dict) else None
 
     def get_config(self) -> Dict:
         return self.config
@@ -137,7 +139,13 @@ class ClientConfig:
         return self.config[section][ConfigKey.PIPE][ConfigKey.CLASS_NAME]
 
     def get_exchange_format(self) -> str:
-        return self.config.get(ConfigKey.TASK_EXCHANGE, {}).get(ConfigKey.EXCHANGE_FORMAT, "")
+        # Fast-path using cached _task_exchange if set at construction
+        task_exchange = self._task_exchange
+        if task_exchange is None:
+            # Fallback in case config was mutated after init
+            task_exchange = self.config.get(ConfigKey.TASK_EXCHANGE, {})
+        # Use local var avoids double lookup, slightly faster than chained gets
+        return task_exchange.get(ConfigKey.EXCHANGE_FORMAT, "")
 
     def get_transfer_type(self) -> str:
         return self.config.get(ConfigKey.TASK_EXCHANGE, {}).get(ConfigKey.TRANSFER_TYPE, "FULL")
