@@ -13,6 +13,13 @@
 # limitations under the License.
 
 
+_translation_table_cache: dict[str, dict[str, int]] = {}
+
+
 def replace_chars(s: str, replace_char: str = "_"):
-    translation_table = str.maketrans({":": replace_char, " ": replace_char, ".": replace_char})
+    if replace_char not in _translation_table_cache:
+        _translation_table_cache[replace_char] = str.maketrans(
+            {":": replace_char, " ": replace_char, ".": replace_char}
+        )
+    translation_table = _translation_table_cache[replace_char]
     return s.translate(translation_table)
