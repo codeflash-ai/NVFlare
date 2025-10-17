@@ -20,9 +20,10 @@ class NetConfig:
         self.config = ConfigService.load_config_dict(config_file_name)
         if not self.config:
             raise RuntimeError(f"cannot load {config_file_name}")
+        self._root_url = self.config.get("root_url")
 
     def get_root_url(self):
-        return self.config.get("root_url")
+        return self._root_url
 
     def get_children(self, me: str):
         my_config = self.config.get(me)
