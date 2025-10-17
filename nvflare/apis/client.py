@@ -14,6 +14,8 @@
 
 import time
 
+_init_time = time.time()
+
 
 class ClientPropKey:
     FQCN = "fqcn"  # Fully Qualified Cell Name: position in Cellnet
@@ -41,8 +43,12 @@ class Client:
         """
         self.name = name
         self.token = token
-        self.last_connect_time = time.time()
-        self.props = {ClientPropKey.FQCN: name, ClientPropKey.FQSN: name, ClientPropKey.IS_LEAF: True}
+        self.last_connect_time = _init_time
+        # Local references for keys avoid repeated attribute lookup
+        fqcn = ClientPropKey.FQCN
+        fqsn = ClientPropKey.FQSN
+        is_leaf = ClientPropKey.IS_LEAF
+        self.props = {fqcn: name, fqsn: name, is_leaf: True}
 
     def set_token(self, token):
         self.token = token
