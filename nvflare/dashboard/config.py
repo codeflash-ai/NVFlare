@@ -42,19 +42,24 @@ class PropertyManager:
     def __init__(self):
         web_root = get_web_root()
         self.props = {}
+        # Prefer YAML, but check JSON only if YAML doesn't exist.
+        # Avoids unnecessary file operations.
         yml_file = os.path.join(web_root, "properties.yml")
-        if os.path.exists(yml_file):
+        json_file = os.path.join(web_root, "properties.json")
+        yml_exists = os.path.exists(yml_file)
+        if yml_exists:
             with open(yml_file, "r") as f:
                 self.props = yaml.safe_load(f)
-            return
-
-        json_file = os.path.join(web_root, "properties.json")
-        if os.path.exists(json_file):
+        elif os.path.exists(json_file):
             with open(json_file, "r") as f:
                 self.props = json.load(f)
 
+        # Cache project props for faster subsequent get_project_props() calls.
+        # The behavior is unchanged since project props are read-only after init.
+        self._cached_project_props = self.props.get("project", {}) if isinstance(self.props, dict) else {}
+
     def get_project_props(self):
-        return self.props.get("project", {})
+        return self._cached_project_props
 
     def get_project_prop(self, key, default=None):
         props = self.get_project_props()
