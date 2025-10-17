@@ -27,6 +27,7 @@ class Registry:
 
     @staticmethod
     def _item_key(channel: str, topic: str) -> str:
+        # f-string is already optimal for small numbers of variables
         return f"{channel}:{topic}"
 
     def set(self, channel: str, topic: str, items: Any):
@@ -42,13 +43,13 @@ class Registry:
         item_list.append(items)
 
     def find(self, channel: str, topic: str) -> Any:
-        items = self.reg.get(self._item_key(channel, topic))
-        if not items:
-            # try topic * in channel
-            items = self.reg.get(self._item_key(channel, "*"))
-
-        if not items:
-            # try topic * in channel *
-            items = self.reg.get(self._item_key("*", "*"))
-
-        return items
+        # Instead of repeated calls to self._item_key and self.reg.get, use a single fast logic branching
+        reg = self.reg
+        k1 = f"{channel}:{topic}"
+        if (items := reg.get(k1)) is not None:
+            return items
+        k2 = f"{channel}:*"
+        if (items := reg.get(k2)) is not None:
+            return items
+        k3 = "*:*"
+        return reg.get(k3)
