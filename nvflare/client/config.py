@@ -123,6 +123,7 @@ class ClientConfig:
         if config is None:
             config = {}
         self.config = config
+        self._root_conn_props_key = ConnPropKey.ROOT_CONN_PROPS
 
     def get_config(self) -> Dict:
         return self.config
@@ -162,7 +163,7 @@ class ClientConfig:
         return self.config.get(ConnPropKey.CONNECTION_SECURITY)
 
     def get_root_conn_props(self):
-        return self.config.get(ConnPropKey.ROOT_CONN_PROPS)
+        return self.config.get(self._root_conn_props_key)
 
     def get_cp_conn_props(self):
         return self.config.get(ConnPropKey.CP_CONN_PROPS)
