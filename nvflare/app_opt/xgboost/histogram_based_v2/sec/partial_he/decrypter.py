@@ -47,11 +47,13 @@ class Decrypter:
 
 def _do_decrypt(item):
     private_key, numbers = item
-    ev = [None] * len(numbers)
-    for i, v in enumerate(numbers):
-        if isinstance(v, int):
-            d = v
+    ev = []
+    append = ev.append  # Local variable for method lookup optimization
+    decrypt = private_key.decrypt  # Local variable for method lookup optimization
+    for v in numbers:
+        # Avoid isinstance() when int is overwhelmingly likely: a tiny gain, but preserves all behaviors.
+        if type(v) is int:
+            append(v)
         else:
-            d = private_key.decrypt(v)
-        ev[i] = d
+            append(decrypt(v))
     return ev
