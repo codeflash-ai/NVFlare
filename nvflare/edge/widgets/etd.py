@@ -134,20 +134,23 @@ class EdgeTaskDispatcher(Widget):
 
     def _remove_job(self, job_id: str):
         with self.lock:
-            if job_id in self.job_metas:
-                del self.job_metas[job_id]
+            self.job_metas.pop(job_id, None)
+            self.job_device_config.pop(job_id, None)
 
-            if job_id in self.job_device_config:
-                del self.job_device_config[job_id]
-
-            for name, job_ids in list(self.edge_jobs.items()):
+            # To optimize job_id removal, avoid repeated 'in' checks; build list of items to remove
+            jobs_to_pop = []
+            for name, job_ids in self.edge_jobs.items():
                 assert isinstance(job_ids, list)
-                if job_ids and job_id in job_ids:
-                    job_ids.remove(job_id)
-                    if not job_ids:
-                        # no more jobs for this edge method
-                        self.edge_jobs.pop(name)
-                    return
+                try:
+                    job_ids.remove(job_id)  # ValueError if not present, skip if so
+                except ValueError:
+                    continue
+                if not job_ids:
+                    jobs_to_pop.append(name)
+                # job_id occurs in only one 'job_ids' -- can break after first removal for slight optimization
+                break
+            for name in jobs_to_pop:
+                self.edge_jobs.pop(name)
 
     def _match_job(self, job_name: str):
         with self.lock:
