@@ -29,6 +29,7 @@ class ClientDictKey:
 
 
 class Client:
+
     def __init__(self, name, token) -> None:
         """Init Client.
 
@@ -60,7 +61,7 @@ class Client:
         self.set_prop(ClientPropKey.FQCN, value)
 
     def get_fqcn(self):
-        return self.get_prop(ClientPropKey.FQCN)
+        return self.props.get(ClientPropKey.FQCN)
 
     def set_fqsn(self, value: str):
         self.set_prop(ClientPropKey.FQSN, value)
