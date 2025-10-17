@@ -22,6 +22,8 @@ from nvflare.fuel.utils.fobs import deserialize, get_dot_handler, serialize
 from nvflare.fuel.utils.fobs.buf_list_stream import BufListStream
 from nvflare.fuel.utils.fobs.datum import Datum, DatumManager, DatumType
 
+_DATUM_DIR_PATH_CACHE = None
+
 # DAT: Datum App Type
 HEADER_STRUCT = struct.Struct(">BBQ")  # marker(1), dot(1), size(8)
 HEADER_LEN = HEADER_STRUCT.size
@@ -221,9 +223,13 @@ def get_datum_dir():
     closed.
 
     """
+    global _DATUM_DIR_PATH_CACHE
+    if _DATUM_DIR_PATH_CACHE is not None:
+        return _DATUM_DIR_PATH_CACHE
     dir_name = ConfigService.get_str_var(name=DATUM_DIR_CONFIG_VAR, default=DEFAULT_DATUM_DIR)
     if not os.path.exists(dir_name):
         os.makedirs(dir_name, exist_ok=True)
+    _DATUM_DIR_PATH_CACHE = dir_name
     return dir_name
 
 
