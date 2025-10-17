@@ -181,11 +181,18 @@ def get_src_template_by_name(cmd_args):
 
 
 def get_src_template(cmd_args) -> Optional[str]:
-    target_template = os.path.abspath(cmd_args.template)
-    if os.path.isdir(target_template):
-        info_file = os.path.join(target_template, JOB_INFO_CONF)
+    template = cmd_args.template
+    # Avoid unnecessary absolute path resolution if not a dir, and merge checks to a single branch
+    if os.path.isdir(template):
+        info_file = os.path.join(template, JOB_INFO_CONF)
         if os.path.isfile(info_file):
-            return target_template
+            return os.path.abspath(template)
+    else:
+        abs_template = os.path.abspath(template)
+        if os.path.isdir(abs_template):
+            info_file = os.path.join(abs_template, JOB_INFO_CONF)
+            if os.path.isfile(info_file):
+                return abs_template
 
     return None
 
