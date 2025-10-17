@@ -22,6 +22,8 @@ from nvflare.fuel.utils.fobs import deserialize, get_dot_handler, serialize
 from nvflare.fuel.utils.fobs.buf_list_stream import BufListStream
 from nvflare.fuel.utils.fobs.datum import Datum, DatumManager, DatumType
 
+__slots__ = ["marker", "dot", "size"]
+
 # DAT: Datum App Type
 HEADER_STRUCT = struct.Struct(">BBQ")  # marker(1), dot(1), size(8)
 HEADER_LEN = HEADER_STRUCT.size
@@ -41,6 +43,7 @@ DEFAULT_DATUM_DIR = os.path.join(os.path.abspath(os.sep), "tmp", "nvflare", "dat
 
 
 class _Header:
+
     def __init__(self, marker: int, dot: int, size: int):
         self.marker = marker
         self.dot = dot
