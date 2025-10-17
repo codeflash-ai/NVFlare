@@ -123,6 +123,7 @@ class ClientConfig:
         if config is None:
             config = {}
         self.config = config
+        self._pipe_class_cache: Dict[str, str] = {}
 
     def get_config(self) -> Dict:
         return self.config
@@ -134,7 +135,11 @@ class ClientConfig:
         return self.config[section][ConfigKey.PIPE][ConfigKey.ARG]
 
     def get_pipe_class(self, section: str) -> str:
-        return self.config[section][ConfigKey.PIPE][ConfigKey.CLASS_NAME]
+        if section in self._pipe_class_cache:
+            return self._pipe_class_cache[section]
+        result = self.config[section][ConfigKey.PIPE][ConfigKey.CLASS_NAME]
+        self._pipe_class_cache[section] = result
+        return result
 
     def get_exchange_format(self) -> str:
         return self.config.get(ConfigKey.TASK_EXCHANGE, {}).get(ConfigKey.EXCHANGE_FORMAT, "")
