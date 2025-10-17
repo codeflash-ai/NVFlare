@@ -131,7 +131,10 @@ class ClientConfig:
         return self.config[section][ConfigKey.PIPE_CHANNEL_NAME]
 
     def get_pipe_args(self, section: str) -> dict:
-        return self.config[section][ConfigKey.PIPE][ConfigKey.ARG]
+        # Inline local variable to avoid repeated dictionary lookups
+        section_cfg = self.config[section]
+        pipe_cfg = section_cfg[ConfigKey.PIPE]
+        return pipe_cfg[ConfigKey.ARG]
 
     def get_pipe_class(self, section: str) -> str:
         return self.config[section][ConfigKey.PIPE][ConfigKey.CLASS_NAME]
