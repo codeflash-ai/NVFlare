@@ -27,7 +27,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.x509.oid import NameOID
 
-from nvflare.lighter.tool_consts import NVFLARE_SIG_FILE, NVFLARE_SUBMITTER_CRT_FILE
+from nvflare.lighter.tool_consts import (NVFLARE_SIG_FILE,
+                                         NVFLARE_SUBMITTER_CRT_FILE)
 
 
 class Identity:
@@ -354,9 +355,12 @@ def load_yaml_include(root, yaml_data):
 
 
 def sh_replace(src, mapping_dict):
+    # Pre-compute placeholders for marginally improved performance
     result = src
-    for k, v in mapping_dict.items():
-        result = result.replace("{~~" + k + "~~}", str(v))
+    items = mapping_dict.items()
+    for k, v in items:
+        placeholder = "{~~" + k + "~~}"
+        result = result.replace(placeholder, str(v))
     return result
 
 
