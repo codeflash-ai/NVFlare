@@ -160,8 +160,8 @@ def _get_datum_id(stream: BinaryIO, header: _Header):
         raise RuntimeError(f"expect {DATUM_ID_LEN} bytes for datum ID but got {len(uuid_bytes)}")
 
     header.size -= DATUM_ID_LEN  # adjust the size in header to be length of remaining data
-    uuid_str = uuid_bytes.hex()  # this str version does not have "-" between parts
-    return str(uuid.UUID(uuid_str))  # this str version has "-" between parts
+    # Directly construct UUID using bytes for better performance
+    return str(uuid.UUID(bytes=uuid_bytes))  # this str version has "-" between parts
 
 
 def _get_one_section(stream: BinaryIO, expect_datum: bool):
