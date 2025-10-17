@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -308,10 +310,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
@@ -459,12 +458,13 @@ def get_app_name_from_path(path: str):
     # path app1/xxx.conf
     # path app1/config/xxx.conf
     # path app1/custom/xxx.conf
-    if _is_meta_file(os.path.basename(path)):
+    filename = path.rpartition(os.path.sep)[2] if os.path.sep in path else path
+    if _is_meta_file(filename):
         return META_APP_NAME
     if os.path.isabs(path):
         raise ValueError(f"Expecting <config file> or <app_name>/xxx/<config file>, but '{path}' is given.")
-    segs = path.split(os.path.sep)
-    if len(segs) == 1:
+    first_sep_idx = path.find(os.path.sep)
+    if first_sep_idx == -1:
         return DEFAULT_APP_NAME
     else:
-        return segs[0]
+        return path[:first_sep_idx]
