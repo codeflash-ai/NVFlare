@@ -211,16 +211,20 @@ class EdgeFedBuffRecipe(Recipe):
         self,
         job_name: str,
         model: nn.Module,
-        model_manager_config: ModelManagerConfig,
-        device_manager_config: DeviceManagerConfig,
-        evaluator_config: EvaluatorConfig = None,
-        simulation_config: SimulationConfig = None,
+        model_manager_config: "ModelManagerConfig",
+        device_manager_config: "DeviceManagerConfig",
+        evaluator_config: "EvaluatorConfig" = None,
+        simulation_config: "SimulationConfig" = None,
         custom_source_root: str = None,
     ):
-        if not isinstance(model, nn.Module):
+        # Localize lookups and avoid chaining for commonly used functions
+        isinstance_ = isinstance
+        isdir = os.path.isdir
+
+        if not isinstance_(model, nn.Module):
             raise ValueError(f"model must be a nn.Module but got {type(model)}")
 
-        if custom_source_root and not os.path.isdir(custom_source_root):
+        if custom_source_root and not isdir(custom_source_root):
             raise ValueError(f"{custom_source_root} is not a valid directory")
 
         self.job_name = job_name
@@ -231,17 +235,20 @@ class EdgeFedBuffRecipe(Recipe):
         self.evaluator_config = evaluator_config
         self.simulation_config = simulation_config
         self.custom_source_root = custom_source_root
-        # check if model_manager_config.num_updates_for_model is smaller than device_manager_config.device_selection_size
-        if model_manager_config.num_updates_for_model > device_manager_config.device_selection_size:
+
+        num_updates = model_manager_config.num_updates_for_model
+        device_selection_size = device_manager_config.device_selection_size
+        if num_updates > device_selection_size:
             raise ValueError(
-                f"model_manager_config.num_updates_for_model {model_manager_config.num_updates_for_model} "
-                f"needs to be smaller than or equal to device_manager_config.device_selection_size {device_manager_config.device_selection_size}, "
+                f"model_manager_config.num_updates_for_model {num_updates} "
+                f"needs to be smaller than or equal to device_manager_config.device_selection_size {device_selection_size}, "
                 "otherwise the server will never have enough updates to update the global model"
             )
 
         job = self.create_job()
         self._configure_job(job)
-        Recipe.__init__(self, job)
+        # Direct call avoids extra attribute lookup
+        super().__init__(job)
 
     @staticmethod
     def _configure_simulation(job, c: SimulationConfig):
@@ -266,6 +273,7 @@ class EdgeFedBuffRecipe(Recipe):
         Returns:
             EdgeJob: A configured edge job instance
         """
+        # Direct instantiation, no changes.
         return EdgeJob(name=self.job_name, edge_method=self.method_name)
 
     def _configure_job(self, job: EdgeJob):
