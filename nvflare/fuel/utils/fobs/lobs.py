@@ -41,6 +41,7 @@ DEFAULT_DATUM_DIR = os.path.join(os.path.abspath(os.sep), "tmp", "nvflare", "dat
 
 
 class _Header:
+
     def __init__(self, marker: int, dot: int, size: int):
         self.marker = marker
         self.dot = dot
@@ -51,8 +52,7 @@ class _Header:
         if len(buffer) < HEADER_LEN:
             raise ValueError("Header too short")
 
-        marker, dot, size = HEADER_STRUCT.unpack_from(buffer, 0)
-        return _Header(marker, dot, size)
+        return cls(*HEADER_STRUCT.unpack_from(buffer, 0))
 
     def to_bytes(self):
         return HEADER_STRUCT.pack(self.marker, self.dot, self.size)
@@ -160,8 +160,7 @@ def _get_datum_id(stream: BinaryIO, header: _Header):
         raise RuntimeError(f"expect {DATUM_ID_LEN} bytes for datum ID but got {len(uuid_bytes)}")
 
     header.size -= DATUM_ID_LEN  # adjust the size in header to be length of remaining data
-    uuid_str = uuid_bytes.hex()  # this str version does not have "-" between parts
-    return str(uuid.UUID(uuid_str))  # this str version has "-" between parts
+    return str(uuid.UUID(bytes=uuid_bytes))
 
 
 def _get_one_section(stream: BinaryIO, expect_datum: bool):
