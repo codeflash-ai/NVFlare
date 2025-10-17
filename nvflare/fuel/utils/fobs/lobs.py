@@ -41,6 +41,7 @@ DEFAULT_DATUM_DIR = os.path.join(os.path.abspath(os.sep), "tmp", "nvflare", "dat
 
 
 class _Header:
+
     def __init__(self, marker: int, dot: int, size: int):
         self.marker = marker
         self.dot = dot
@@ -50,9 +51,8 @@ class _Header:
     def from_bytes(cls, buffer: bytes):
         if len(buffer) < HEADER_LEN:
             raise ValueError("Header too short")
-
-        marker, dot, size = HEADER_STRUCT.unpack_from(buffer, 0)
-        return _Header(marker, dot, size)
+        # Unpack directly into the constructor using argument unpacking for improved readability/performance
+        return cls(*HEADER_STRUCT.unpack_from(buffer, 0))
 
     def to_bytes(self):
         return HEADER_STRUCT.pack(self.marker, self.dot, self.size)
