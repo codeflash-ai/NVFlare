@@ -120,14 +120,14 @@ def from_dict(d: dict) -> Client:
 
     # If FQCN is missing, default to name
     fqcn = d.get(ClientDictKey.FQCN, name)
-    c.set_fqcn(fqcn)
+    c.props[ClientPropKey.FQCN] = fqcn
 
     # If FQSN is missing, default to name
     fqsn = d.get(ClientDictKey.FQSN, name)
-    c.set_fqsn(fqsn)
+    c.props[ClientPropKey.FQSN] = fqsn
 
     # If IS_LEAF is missing, default to True
     is_leaf = d.get(ClientDictKey.IS_LEAF, True)
-    c.set_is_leaf(is_leaf)
+    c.props[ClientPropKey.IS_LEAF] = is_leaf
 
     return c
