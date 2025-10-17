@@ -27,7 +27,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.x509.oid import NameOID
 
-from nvflare.lighter.tool_consts import NVFLARE_SIG_FILE, NVFLARE_SUBMITTER_CRT_FILE
+from nvflare.lighter.tool_consts import (NVFLARE_SIG_FILE,
+                                         NVFLARE_SUBMITTER_CRT_FILE)
 
 
 class Identity:
