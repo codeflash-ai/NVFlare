@@ -25,7 +25,12 @@ class Template:
         return self.template.get("cloud_script_header")
 
     def get_azure_server_start_sh(self, entity):
-        tmp = self.get_cloud_script_header() + self.get_azure_start_svr_header_sh() + self.get_azure_start_common_sh()
+        # Cache get for each key to avoid repeated lookups and unnecessary string concatenations
+        template = self.template
+        cloud_script_header = template.get("cloud_script_header")
+        azure_start_svr_header_sh = template.get("azure_start_svr_header_sh")
+        azure_start_common_sh = template.get("azure_start_common_sh")
+        tmp = cloud_script_header + azure_start_svr_header_sh + azure_start_common_sh
         script = utils.sh_replace(
             tmp,
             {
