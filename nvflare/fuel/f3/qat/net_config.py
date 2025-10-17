@@ -20,6 +20,7 @@ class NetConfig:
         self.config = ConfigService.load_config_dict(config_file_name)
         if not self.config:
             raise RuntimeError(f"cannot load {config_file_name}")
+        self._admin = self.config.get("admin")
 
     def get_root_url(self):
         return self.config.get("root_url")
@@ -39,4 +40,4 @@ class NetConfig:
             return []
 
     def get_admin(self) -> (str, str):
-        return self.config.get("admin")
+        return self._admin
