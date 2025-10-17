@@ -256,6 +256,8 @@ class EnumTypeDecomposer(Decomposer):
             raise TypeError(f"{data_type} is not an enum")
 
         self.data_type = data_type
+        # Cache enum member lookups for performance
+        self._enum_member_cache = self.data_type.__members__
 
     def supported_type(self) -> Type[Enum]:
         return self.data_type
@@ -264,4 +266,6 @@ class EnumTypeDecomposer(Decomposer):
         return target.name
 
     def recompose(self, data: Any, manager: DatumManager = None) -> Enum:
-        return self.data_type[data]
+        # Using the pre-fetched __members__ mapping for faster lookup.
+        # This avoids repeated attribute access overhead in hot code path.
+        return self._enum_member_cache[data]
