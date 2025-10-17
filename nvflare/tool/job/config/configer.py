@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -96,10 +98,13 @@ def filter_indices(app_indices_configs: Dict[str, Dict[str, Tuple]]) -> Dict[str
 def filter_config_name_and_values(
     excluded_key_list: List[str], key_indices: Dict[str, List[KeyIndex]]
 ) -> Dict[str, KeyIndex]:
+    excluded_key_set = set(excluded_key_list)
     temp_results = {}
     for key, key_index_list in key_indices.items():
+        if key in excluded_key_set:
+            continue
         for key_index in key_index_list:
-            if key not in excluded_key_list and key_index.value not in excluded_key_list:
+            if key_index.value not in excluded_key_set:
                 # duplicated key will be over-written by last one
                 temp_results[key] = key_index
 
@@ -308,10 +313,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
