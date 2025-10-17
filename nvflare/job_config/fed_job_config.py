@@ -459,10 +459,7 @@ class FedJobConfig:
         return deploy_map
 
     def _trim_whitespace(self, string: str):
-        strings = string.split(",")
-        for i in range(len(strings)):
-            strings[i] = strings[i].strip()
-        return ",".join(strings)
+        return ",".join(piece.strip() for piece in string.split(","))
 
     @staticmethod
     def _is_valid_job_folder(job_folder: str) -> bool:
