@@ -120,9 +120,7 @@ class ClientConfig:
     """
 
     def __init__(self, config: Optional[Dict] = None):
-        if config is None:
-            config = {}
-        self.config = config
+        self.config = config if config is not None else {}
 
     def get_config(self) -> Dict:
         return self.config
