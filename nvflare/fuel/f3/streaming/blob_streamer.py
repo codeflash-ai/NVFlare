@@ -64,7 +64,7 @@ class BlobStream(Stream):
         if not isinstance(buffer, list):
             return len(buffer)
 
-        return sum(len(buf) for buf in buffer)
+        return sum(map(len, buffer))
 
 
 class BlobTask:
