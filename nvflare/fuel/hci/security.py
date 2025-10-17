@@ -84,17 +84,10 @@ def get_identity_info(cert: dict):
     if cert is None:
         return None
 
-    cn = None
-    role = None
-    organization = None
     sub = cert.get("subject", {})
-    for key, value in sub.items():
-        if key == "commonName":
-            cn = value
-        elif key == "unstructuredName":
-            role = value
-        elif key == "organizationName":
-            organization = value
+    cn = sub.get("commonName")
+    role = sub.get("unstructuredName")
+    organization = sub.get("organizationName")
     return {IdentityKey.NAME: cn, IdentityKey.ORG: organization, IdentityKey.ROLE: role}
 
 
