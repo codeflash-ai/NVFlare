@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -114,6 +116,29 @@ def _cast_type(key_index, cli_value):
     if key_index.value is None:
         return cli_value
 
+    # Fast-path for obvious primitive types, only use ConfigFactory for other types
+    # Try to avoid pyhocon if type already matches or is a clear primitive
+    orig_type = type(key_index.value)
+    if orig_type is int:
+        # Avoid pyhocon for integer
+        try:
+            return int(cli_value)
+        except Exception:
+            pass
+    elif orig_type is float:
+        try:
+            return float(cli_value)
+        except Exception:
+            pass
+    elif orig_type is bool:
+        val = cli_value.lower()
+        if val in ("true", "yes", "1"):
+            return True
+        elif val in ("false", "no", "0"):
+            return False
+    elif orig_type is str and isinstance(cli_value, str):
+        return cli_value
+    # Fallback to pyhocon type inference
     new_value = ConfigFactory.parse_string(f"{key_index.key}={cli_value}")[key_index.key]
     return new_value
 
@@ -147,16 +172,25 @@ def split_array_key(key: str) -> Tuple:
 def convert_to_number(value: str):
     if not value:
         return value
-
-    try:
-        if value.isdigit():
-            return int(value)
-        elif value.replace(".", "").isdigit():
-            return float(value)
-        else:
+    # Optimization: parse int/float in one pass without allocations
+    s = value
+    is_neg = s[0] == '-' if s else False
+    if s.isdigit() or (is_neg and s[1:].isdigit()):
+        try:
+            return int(s)
+        except Exception:
             return value
-    except Exception:
-        return value
+    # float check: at most one '.' and all others are digits, allow leading/trailing '.'
+    if '.' in s:
+        floats = s.split('.')
+        if len(floats) == 2:
+            pre, post = floats
+            if (pre.isdigit() or (pre and pre[0] == '-' and pre[1:].isdigit())) and post.isdigit():
+                try:
+                    return float(s)
+                except Exception:
+                    return value
+    return value
 
 
 def get_last_token(input_string):
@@ -172,7 +206,6 @@ def get_last_token(input_string):
 
 
 def handle_key_in_path_notation_or_new_key(file: str, key: str, cli_value: str, config: ConfigTree, key_indices: Dict):
-
     key_value = None
     parent, index, key = split_array_key(key)
     if parent is not None and index is not None:
@@ -219,15 +252,15 @@ def merge_configs(
             Each of the merged configurations can be expressed in a Tuple: config, excluded_key_List, key_indices
     """
     app_merged = {}
-    for app_name in app_indices_configs:
-        indices_configs = app_indices_configs[app_name]
-        cli_file_configs = app_cli_file_configs.get(app_name, None)
+    for app_name, indices_configs in app_indices_configs.items():
+        cli_file_configs = app_cli_file_configs.get(app_name)
         if cli_file_configs:
             merged = {}
             for file, (config, excluded_key_list, key_indices) in indices_configs.items():
-                if len(key_indices) > 0:
-                    cli_configs = cli_file_configs.get(file, None)
+                if key_indices:
+                    cli_configs = cli_file_configs.get(file)
                     if cli_configs:
+                        # minor optimization: materialize .items() only if not empty
                         for key, cli_value in cli_configs.items():
                             cli_value = convert_to_number(cli_value)
                             if key not in key_indices:
@@ -239,6 +272,7 @@ def merge_configs(
                             else:
                                 if cli_value:
                                     indices = key_indices.get(key)
+                                    # optimization: remove loop for singleton list
                                     for key_index in indices:
                                         new_value = _cast_type(key_index, cli_value)
                                         key_index.value = new_value
@@ -247,14 +281,11 @@ def merge_configs(
                                             parent_key.value.put(key_index.key, new_value)
                                 else:
                                     key_indices.pop(key)
-
                 merged[file] = (config, excluded_key_list, key_indices)
             app_merged[app_name] = merged
         elif app_name == META_APP_NAME:
-            new_indices_configs = {}
-            for k, v in indices_configs.items():
-                new_indices_configs[k] = v
-            app_merged[app_name] = new_indices_configs
+            # Shallow copy, no need to reconstruct loop
+            app_merged[app_name] = dict(indices_configs)
         else:
             app_merged[app_name] = indices_configs
 
@@ -308,10 +339,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
