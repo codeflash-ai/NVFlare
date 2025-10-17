@@ -627,20 +627,16 @@ def dst_config_path(job_folder, config_filename, app_name: str = "app"):
 
 
 def get_config_dirs(job_folder: str, app_names: List[str]) -> List[str]:
-    config_dirs = []
+    # Preallocate result list for speed, using list comprehension for efficiency.
     if app_names:
-        for app_name in app_names:
-            config_dirs.append(get_config_dir(job_folder, app_name))
+        return [get_config_dir(job_folder, app_name) for app_name in app_names]
     else:
-        config_dirs.append(get_config_dir(job_folder, "app"))
-
-    return config_dirs
+        return [get_config_dir(job_folder, "app")]
 
 
 def get_config_dir(job_folder: str, app_name: str) -> str:
-    app_dir = dst_app_path(job_folder, app_name)
-    config_dir = os.path.join(app_dir, "config")
-    return config_dir
+    # Inline os.path.join for both calls to minimize function call overhead
+    return os.path.join(job_folder, app_name, "config")
 
 
 def convert_args_list_to_dict(kvs: Optional[List[str]] = None) -> dict:
