@@ -44,14 +44,25 @@ class PropertyManager:
         self.props = {}
         yml_file = os.path.join(web_root, "properties.yml")
         if os.path.exists(yml_file):
+            # Use safe_load only if file is non-empty to avoid loading None
             with open(yml_file, "r") as f:
-                self.props = yaml.safe_load(f)
+                data = f.read()
+                if data:
+                    self.props = yaml.safe_load(data)
             return
 
         json_file = os.path.join(web_root, "properties.json")
         if os.path.exists(json_file):
+            # Optimize: directly load json if file exists and is not empty
             with open(json_file, "r") as f:
-                self.props = json.load(f)
+                data = f.read()
+                if data:
+                    self.props = json.loads(data)
+
+        # Pre-cache admin props dict for faster direct access
+        admin_props = self.props.get("admin")
+        # If admin_props is not a dict, fallback to empty dict
+        self._admin_props = admin_props if isinstance(admin_props, dict) else {}
 
     def get_project_props(self):
         return self.props.get("project", {})
@@ -75,7 +86,8 @@ class PropertyManager:
         return props.get(key, default)
 
     def get_admin_props(self):
-        return self.props.get("admin", {})
+        # Fast direct return (cached in __init__)
+        return self._admin_props
 
     def get_admin_prop(self, key, default=None):
         props = self.get_admin_props()
