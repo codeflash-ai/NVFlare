@@ -35,6 +35,9 @@ def fire_event_to_components(event: str, components: List[FLComponent], ctx: FLC
     Returns: N/A
 
     """
+    if not components:
+        return
+
     event_id = str(uuid.uuid4())
     event_data = ctx.get_prop(FLContextKey.EVENT_DATA, None)
     event_origin = ctx.get_prop(FLContextKey.EVENT_ORIGIN, None)
@@ -47,38 +50,41 @@ def fire_event_to_components(event: str, components: List[FLComponent], ctx: FLC
 
     ctx.set_prop(key=_KEY_EVENT_DEPTH, value=depth + 1, private=True, sticky=False)
 
-    if components:
-        for h in components:
-            if not isinstance(h, FLComponent):
-                raise TypeError(f"handler must be FLComponent but got {type(h)}")
-            try:
-                # since events could be recursive (a handler fires another event) on the same fl_ctx,
-                # we need to reset these key values into the fl_ctx
-                ctx.set_prop(key=FLContextKey.EVENT_ID, value=event_id, private=True, sticky=False)
-                ctx.set_prop(key=FLContextKey.EVENT_DATA, value=event_data, private=True, sticky=False)
-                ctx.set_prop(key=FLContextKey.EVENT_ORIGIN, value=event_origin, private=True, sticky=False)
-                ctx.set_prop(key=FLContextKey.EVENT_SCOPE, value=event_scope, private=True, sticky=False)
+    set_prop_args = [
+        (FLContextKey.EVENT_ID, event_id),
+        (FLContextKey.EVENT_DATA, event_data),
+        (FLContextKey.EVENT_ORIGIN, event_origin),
+        (FLContextKey.EVENT_SCOPE, event_scope)
+    ]
 
-                event_table = h.get_event_handlers()
-                if event_table:
-                    entries = event_table.get(event)
-                    if entries:
-                        for cb, kwargs in entries:
-                            cb(event, ctx, **kwargs)
-                    else:
-                        # no CB explicitly for this event - call the default handler.
-                        h.handle_event(event, ctx)
+    for h in components:
+        if not isinstance(h, FLComponent):
+            raise TypeError(f"handler must be FLComponent but got {type(h)}")
+        try:
+            # Only set these props once per-handler (as in original logic)
+            for k, v in set_prop_args:
+                ctx.set_prop(key=k, value=v, private=True, sticky=False)
+
+            event_table = h.get_event_handlers()
+            if event_table:
+                entries = event_table.get(event)
+                if entries:
+                    for cb, kwargs in entries:
+                        cb(event, ctx, **kwargs)
                 else:
-                    # no explicitly defined CBs - call the default handler.
+                    # no CB explicitly for this event - call the default handler.
                     h.handle_event(event, ctx)
-            except Exception as e:
-                h.log_exception(
-                    ctx, f'Exception when handling event "{event}": {secure_format_exception(e)}', fire_event=False
-                )
-                exceptions = ctx.get_prop(FLContextKey.EXCEPTIONS)
-                if not exceptions:
-                    exceptions = {}
-                    ctx.set_prop(FLContextKey.EXCEPTIONS, exceptions, sticky=False, private=True)
-                exceptions[h.name] = e
+            else:
+                # no explicitly defined CBs - call the default handler.
+                h.handle_event(event, ctx)
+        except Exception as e:
+            h.log_exception(
+                ctx, f'Exception when handling event "{event}": {secure_format_exception(e)}', fire_event=False
+            )
+            exceptions = ctx.get_prop(FLContextKey.EXCEPTIONS)
+            if exceptions is None:
+                exceptions = {}
+                ctx.set_prop(FLContextKey.EXCEPTIONS, exceptions, sticky=False, private=True)
+            exceptions[h.name] = e
 
     ctx.set_prop(key=_KEY_EVENT_DEPTH, value=depth, private=True, sticky=False)
