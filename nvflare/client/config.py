@@ -124,11 +124,25 @@ class ClientConfig:
             config = {}
         self.config = config
 
+        # Pre-cache section->pipe_channel_name mapping for fast lookup
+        self._pipe_channel_names = {}
+        for section, section_dict in config.items():
+            try:
+                pipe_channel_name = section_dict.get(ConfigKey.PIPE_CHANNEL_NAME)  # type: ignore[attr-defined]
+                if pipe_channel_name is not None:
+                    self._pipe_channel_names[section] = pipe_channel_name
+            except AttributeError:
+                continue  # in case section_dict is not a dict or lacks get()
+
     def get_config(self) -> Dict:
         return self.config
 
     def get_pipe_channel_name(self, section: str) -> str:
-        return self.config[section][ConfigKey.PIPE_CHANNEL_NAME]
+        try:
+            return self._pipe_channel_names[section]
+        except KeyError:
+            # fallback to original behavior in case of config change after init
+            return self.config[section][ConfigKey.PIPE_CHANNEL_NAME]
 
     def get_pipe_args(self, section: str) -> dict:
         return self.config[section][ConfigKey.PIPE][ConfigKey.ARG]
