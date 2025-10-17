@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -163,10 +165,9 @@ def get_last_token(input_string):
     if not input_string:
         return input_string
 
-    tokens = input_string.split(".")
-    if len(tokens) > 1:
-        last_token = tokens[-1]
-        return last_token
+    idx = input_string.rfind(".")
+    if idx != -1:
+        return input_string[idx+1:]
     else:
         return input_string
 
@@ -308,10 +309,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
