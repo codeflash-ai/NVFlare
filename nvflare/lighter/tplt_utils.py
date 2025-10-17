@@ -53,7 +53,8 @@ class Template:
         return script
 
     def get_azure_client_start_sh(self, entity):
-        tmp = self.get_cloud_script_header() + self.get_azure_start_cln_header_sh() + self.get_azure_start_common_sh()
+        template = self.template
+        tmp = template.get("cloud_script_header") + template.get("azure_start_cln_header_sh") + template.get("azure_start_common_sh")
         script = utils.sh_replace(
             tmp,
             {"type": "client", "docker_network": "", "cln_uid": f"uid={entity.name}", "ORG": entity.org},
