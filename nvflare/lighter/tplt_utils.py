@@ -83,7 +83,13 @@ class Template:
         return self.get_cloud_script_header() + self.get_azure_start_svr_header_sh() + self.get_azure_start_common_sh()
 
     def get_azure_cln_sh(self):
-        return self.get_cloud_script_header() + self.get_azure_start_cln_header_sh() + self.get_azure_start_common_sh()
+        # Combine all in one step for performance and reduced method lookup
+        template = self.template
+        return (
+            template.get("cloud_script_header")
+            + template.get("azure_start_cln_header_sh")
+            + template.get("azure_start_common_sh")
+        )
 
     def get_start_sh(self, csp, type, entity):
         try:
