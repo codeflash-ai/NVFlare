@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -56,28 +58,39 @@ def extract_string_with_index(input_string):
 
     """
 
-    result = []
+    # Fast shortcut for all-empty/space strings
     if not input_string.strip(" "):
-        return result
+        return []
 
+    # Locate brackets, but avoid repeated str.find calls
     opening_bracket_index = input_string.find("[")
-    closing_bracket_index = input_string.find("]")
+    closing_bracket_index = input_string.find("]", opening_bracket_index + 1 if opening_bracket_index != -1 else 0)
+
     if opening_bracket_index > 0 and closing_bracket_index > 0:
         string_before = input_string[:opening_bracket_index]
+        # Use int conversion that trusts correct input as in the original
         index = int(input_string[opening_bracket_index + 1 : closing_bracket_index])
-        string_after = input_string[closing_bracket_index + 1 :].strip(". ")
+        # Avoid double .strip calls
+        string_after_raw = input_string[closing_bracket_index + 1 :]
+        string_after = string_after_raw.strip(". ")
+
         if string_after:
-            r = (string_before.strip("."), index, extract_string_with_index(string_after.strip(".")))
+            # Compose inner recursion tuple eagerly; the strip of '.' is hoisted
+            r = (string_before.strip("."), index, extract_string_with_index(string_after))
             if r:
-                result.append(r)
+                # Since r always has len > 0 (tuple of 3 elements), and original code always appends it if r evaluates True,
+                # we can skip later filtering for tuples, and only return [r]
+                return [r]
         else:
             r = (string_before.strip("."), index, string_after)
-            result.append(r)
+            return [r]
     else:
-        result.append(input_string)
+        # No valid brackets, just return the string as entry in list
+        return [input_string]
 
-    result = [elm for elm in result if len(elm) > 0]
-    return result
+    # No need to filter result: all non-empty tuples always appended
+    # This situation is unreachable due to early returns above, but keep functionally identical
+    return []
 
 
 def filter_indices(app_indices_configs: Dict[str, Dict[str, Tuple]]) -> Dict[str, Dict[str, Dict[str, KeyIndex]]]:
@@ -308,10 +321,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
