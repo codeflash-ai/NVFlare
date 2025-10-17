@@ -62,6 +62,8 @@ from nvflare.utils.cli_utils import (
     save_config,
 )
 
+_dst_app_path = os.path.join
+
 CMD_LIST_TEMPLATES = "list_templates"
 CMD_SHOW_VARIABLES = "show_variables"
 CMD_CREATE_JOB = "create"
@@ -617,7 +619,7 @@ def load_default_config_template(config_file_name: str):
 
 
 def dst_app_path(job_folder: str, app_name="app"):
-    return os.path.join(job_folder, app_name)
+    return _dst_app_path(job_folder, app_name)
 
 
 def dst_config_path(job_folder, config_filename, app_name: str = "app"):
