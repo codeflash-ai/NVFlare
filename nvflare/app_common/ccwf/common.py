@@ -16,6 +16,8 @@ from typing import Union
 
 from nvflare.app_common.abstract.metric_comparator import MetricComparator
 
+_number_types = (int, float)
+
 
 class Constant:
 
@@ -156,19 +158,23 @@ class StatusReport:
 
 
 def status_report_from_dict(d: dict) -> StatusReport:
-    last_round = d.get(Constant.LAST_ROUND)
-    timestamp = d.get(Constant.TIMESTAMP)
-    all_done = d.get(Constant.ALL_DONE)
-    error = d.get(Constant.ERROR)
-    action = d.get(Constant.ACTION)
+    # Use localize attribute lookups for faster dict access and reduced function call overhead
+    get = d.get
+    LAST_ROUND = Constant.LAST_ROUND
+    TIMESTAMP = Constant.TIMESTAMP
+    ALL_DONE = Constant.ALL_DONE
+    ERROR = Constant.ERROR
+    ACTION = Constant.ACTION
 
-    return StatusReport(
-        last_round=last_round,
-        timestamp=timestamp,
-        action=action,
-        all_done=all_done,
-        error=error,
-    )
+    # Collect all values in one go
+    last_round = get(LAST_ROUND)
+    timestamp = get(TIMESTAMP)
+    all_done = get(ALL_DONE)
+    error = get(ERROR)
+    action = get(ACTION)
+
+    # Construct StatusReport using positional arguments for faster instantiation (if possible)
+    return StatusReport(last_round, timestamp, action, all_done, error)
 
 
 def rotate_to_front(item, items: list):
@@ -196,10 +202,10 @@ def make_task_name(prefix: str, base_name: str) -> str:
 
 class NumberMetricComparator(MetricComparator):
     def compare(self, a, b) -> Union[int, float]:
-        if not isinstance(a, (int, float)):
+        if not isinstance(a, _number_types):
             raise ValueError(f"metric value must be a number but got {type(a)}")
 
-        if not isinstance(b, (int, float)):
+        if not isinstance(b, _number_types):
             raise ValueError(f"metric value must be a number but got {type(b)}")
 
         return a - b
