@@ -39,8 +39,16 @@ class PTFedProxLoss(_Loss):
         Returns:
             FedProx loss term
         """
-        prox_loss: torch.Tensor = 0.0
-        for param, ref in zip(input.named_parameters(), target.named_parameters()):
-            prox_loss += (self.mu / 2) * torch.sum((param[1] - ref[1]) ** 2)
-
+        # Optimization: collect parameter tensors into lists, then compute difference tensor-wise.
+        input_params = [p for _, p in input.named_parameters()]
+        target_params = [p for _, p in target.named_parameters()]
+        # This is safe as the original code assumes zipped order is correct.
+        prox_terms = []
+        mu_div_2 = self.mu / 2
+        for p, r in zip(input_params, target_params):
+            prox_terms.append(torch.sum((p - r) ** 2))
+        if prox_terms:
+            prox_loss: torch.Tensor = mu_div_2 * torch.stack(prox_terms).sum()
+        else:
+            prox_loss: torch.Tensor = torch.tensor(0.0, device=input_params[0].device if input_params else "cpu")
         return prox_loss
