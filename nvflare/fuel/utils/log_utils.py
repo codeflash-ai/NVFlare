@@ -232,10 +232,9 @@ class JsonFormatter(BaseFormatter):
         return fmt_dict
 
     def formatMessageDict(self, record) -> dict:
-        message_dict = {}
-        for fmt_key, fmt_val in self.fmt_dict.items():
-            message_dict[fmt_key] = record.__dict__.get(fmt_val, "")
-        return message_dict
+        record_dict = record.__dict__
+        get_val = record_dict.get
+        return {fmt_key: get_val(fmt_val, "") for fmt_key, fmt_val in self.fmt_dict.items()}
 
     def format(self, record) -> str:
         super().format(record)
@@ -274,7 +273,9 @@ class LoggerNameFilter(logging.Filter):
         )
 
     def matches_name(self, name, logger_names) -> bool:
-        return any(name.startswith(logger_name) or name.split(".")[-1] == logger_name for logger_name in logger_names)
+        if name.startswith(tuple(logger_names)):
+            return True
+        return name.rsplit(".", 1)[-1] in set(logger_names)
 
 
 def get_module_logger(module=None, name=None) -> logging.Logger:
