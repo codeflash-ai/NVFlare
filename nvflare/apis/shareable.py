@@ -46,10 +46,15 @@ class Shareable(dict):
 
     def __init__(self, data: dict = None):
         """Init the Shareable."""
-        super().__init__()
+        # Avoid an unnecessary dict copy when data is empty or None
         if data:
-            self.update(data)
-        self[ReservedHeaderKey.HEADERS] = {}
+            super().__init__(data)
+        else:
+            super().__init__()
+        # Only set the HEADERS key if not already present in the initial data
+        headers_key = ReservedHeaderKey.HEADERS
+        if headers_key not in self:
+            self[headers_key] = {}
 
     def set_header(self, key: str, value):
         header = self.get(ReservedHeaderKey.HEADERS, None)
