@@ -91,7 +91,11 @@ class Shareable(dict):
         cookie_jar[name] = data
 
     def get_cookie_jar(self):
-        return self.get_header(key=ReservedHeaderKey.COOKIE_JAR, default=None)
+        # Direct header lookup for improved performance instead of an extra function call
+        header = self.get(ReservedHeaderKey.HEADERS)
+        if not header or not isinstance(header, dict):
+            return None
+        return header.get(ReservedHeaderKey.COOKIE_JAR, None)
 
     def set_cookie_jar(self, jar):
         self.set_header(key=ReservedHeaderKey.COOKIE_JAR, value=jar)
