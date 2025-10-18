@@ -42,6 +42,11 @@ from nvflare.lighter.utils import (
 from nvflare.tool.api_utils import shutdown_system
 from nvflare.tool.poc.service_constants import FlareServiceConstants as SC
 from nvflare.utils.cli_utils import get_hidden_nvflare_config_path, get_or_create_hidden_nvflare_dir, hocon_to_string
+from threading import Lock
+
+_poc_workspace_cache = {}
+
+_poc_workspace_lock = Lock()
 
 DEFAULT_WORKSPACE = "/tmp/nvflare/poc"
 DEFAULT_PROJECT_NAME = "example_project"
@@ -483,7 +488,6 @@ def get_or_create_hidden_nvflare_config_path() -> str:
         str: The path to the hidden nvflare configuration file.
     """
     hidden_nvflare_dir = get_or_create_hidden_nvflare_dir()
-
     hidden_nvflare_config_file = get_hidden_nvflare_config_path(str(hidden_nvflare_dir))
     return hidden_nvflare_config_file
 
@@ -1055,14 +1059,30 @@ def handle_poc_cmd(cmd_args):
 
 def get_poc_workspace():
     poc_workspace = os.getenv("NVFLARE_POC_WORKSPACE")
+    if poc_workspace:
+        if len(poc_workspace.strip()) == 0:
+            return DEFAULT_WORKSPACE
+        return poc_workspace
 
-    if not poc_workspace:
-        src_path = get_or_create_hidden_nvflare_config_path()
-        if os.path.isfile(src_path):
-            from pyhocon import ConfigFactory as CF
+    config_path = get_or_create_hidden_nvflare_config_path()
+    # Use a simple cache for config_path to avoid reparsing the file per call
+    with _poc_workspace_lock:
+        cache_hit = config_path in _poc_workspace_cache
+        config_val = _poc_workspace_cache.get(config_path, None) if cache_hit else None
 
-            config = CF.parse_file(src_path)
-            poc_workspace = config.get("poc_workspace.path", None)
+    if not cache_hit and os.path.isfile(config_path):
+        # Delay import until needed, as parse_file is slow and only rarely called
+        from pyhocon import ConfigFactory as CF
+        try:
+            config = CF.parse_file(config_path)
+            config_val = config.get("poc_workspace.path", None)
+        except Exception:
+            config_val = None
+        # cache for this file path
+        with _poc_workspace_lock:
+            _poc_workspace_cache[config_path] = config_val
+
+    poc_workspace = config_val if config_val is not None else poc_workspace
 
     if poc_workspace is None or len(poc_workspace.strip()) == 0:
         poc_workspace = DEFAULT_WORKSPACE
