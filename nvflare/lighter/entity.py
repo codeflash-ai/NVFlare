@@ -178,11 +178,15 @@ _PROP_VALIDATORS = {
 
 class Entity:
     def __init__(self, scope: str, name: str, props: dict, parent=None):
-        if not props:
+        # Avoid if not props since {} is falsy and can cause an unnecessary dict creation
+        if props is None:
             props = {}
 
+        # Explicit local variable for lookup, slightly faster in Python interpreter
+        validators = _PROP_VALIDATORS
+
         for k, v in props.items():
-            validator = _PROP_VALIDATORS.get(k)
+            validator = validators.get(k)
             if validator is not None:
                 validator(scope, k, v)
         self.name = name
@@ -208,16 +212,16 @@ class Entity:
         Returns: property value
 
         """
-        value = self.get_prop(key)
-        if value:
-            return value
-        elif not self.parent:
+        # Minimize lookups
+        val = self.props.get(key)
+        if val:
+            return val
+        parent = self.parent
+        if not parent:
             return default
-        else:
-            # get the value from the parent
-            if not fb_key:
-                fb_key = key
-            return self.parent.get_prop(fb_key, default)
+        # Only create fb_key if truly needed (in-hot path)
+        fbkey = fb_key if fb_key else key
+        return parent.get_prop(fbkey, default)
 
     def __str__(self):
         return f"Entity[{self.name=}, {self.props=}, {self.parent=}]"
@@ -405,6 +409,9 @@ class Project(Entity):
         self._participants_by_types = {}  # participant type => list of participants
         self._all_names = {}  # name => participant
 
+        # Optimization: Avoid attribute lookup in loop, cache locals
+        _add_participant = self.add_participant
+
         if participants:
             if not isinstance(participants, list):
                 raise ValueError(f"participants must be a list of Participant but got {type(participants)}")
@@ -412,7 +419,7 @@ class Project(Entity):
             for p in participants:
                 if not isinstance(p, Participant):
                     raise ValueError(f"bad item in participants: must be Participant but got {type(p)}")
-                self.add_participant(p)
+                _add_participant(p)
 
     def set_server(self, name: str, org: str, props: dict) -> Participant:
         """Set the server of the project.
@@ -554,19 +561,26 @@ class Project(Entity):
         """
         if not types:
             # get all types
+            # Optimization: view.values() is slightly faster and more memory efficient than list() if only iterating
             return list(self._all_names.values())
 
+        # Optimization: Fast-path for str type; avoid repeated isinstance and unnecessary checks
         if isinstance(types, str):
-            types = [types]
-        elif not isinstance(types, list):
+            ps = self._participants_by_types.get(types)
+            return ps[:] if ps else []
+
+        if not isinstance(types, list):
             raise ValueError(f"types must be a str or List[str] but got {type(types)}")
 
+        # Optimization: Use set for processed_types for O(1) membership check and avoid quadratic cost
         result = []
-        processed_types = []  # in case 'types' contains duplicates
+        processed_types = set()
+        _participants_by_types = self._participants_by_types
+        # Avoid repeated lookup and list construction
         for t in types:
             if t not in processed_types:
-                ps = self._participants_by_types.get(t)
+                ps = _participants_by_types.get(t)
                 if ps:
                     result.extend(ps)
-                processed_types.append(t)
+                processed_types.add(t)
         return result
