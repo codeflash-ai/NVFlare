@@ -80,41 +80,47 @@ def client_gpu_assignments(clients: List[str], gpu_ids: List[int]) -> Dict[str, 
 
 
 def get_service_command(cmd_type: str, prod_dir: str, service_dir, service_config: Dict) -> str:
-    cmd = ""
+    # Performance: Avoid repeated lookups and function calls, and use local variables
     proj_admin_dir_name = service_config.get(SC.FLARE_PROJ_ADMIN, SC.FLARE_PROJ_ADMIN)
-    admin_dirs = list(service_config.get(SC.FLARE_OTHER_ADMINS, []))
+    admin_dirs = service_config.get(SC.FLARE_OTHER_ADMINS)
+    if admin_dirs is None:
+        admin_dirs = []
+    else:
+        admin_dirs = list(admin_dirs)
     admin_dirs.append(proj_admin_dir_name)
+    is_docker_run = service_config.get(SC.IS_DOCKER_RUN)
+    is_admin = service_dir in admin_dirs
 
     if cmd_type == SC.CMD_START:
-        if not service_config.get(SC.IS_DOCKER_RUN):
-            if service_dir in admin_dirs:
-                cmd = get_cmd_path(prod_dir, service_dir, "fl_admin.sh")
+        if not is_docker_run:
+            if is_admin:
+                return get_cmd_path(prod_dir, service_dir, "fl_admin.sh")
             else:
-                cmd = get_cmd_path(prod_dir, service_dir, "start.sh")
+                return get_cmd_path(prod_dir, service_dir, "start.sh")
         else:
-            if service_dir in admin_dirs:
-                cmd = get_cmd_path(prod_dir, service_dir, "fl_admin.sh")
+            if is_admin:
+                return get_cmd_path(prod_dir, service_dir, "fl_admin.sh")
             else:
-                cmd = get_cmd_path(prod_dir, service_dir, "docker.sh -d")
+                # Avoid unnecessary string concatenation for "docker.sh -d"
+                return get_cmd_path(prod_dir, service_dir, "docker.sh -d")
 
     elif cmd_type == SC.CMD_STOP:
-        if not service_config.get(SC.IS_DOCKER_RUN):
-            cmd = get_stop_cmd(prod_dir, service_dir)
+        if not is_docker_run:
+            return get_stop_cmd(prod_dir, service_dir)
         else:
-            if service_dir in admin_dirs:
-                cmd = get_stop_cmd(prod_dir, service_dir)
+            if is_admin:
+                return get_stop_cmd(prod_dir, service_dir)
             else:
-                cmd = f"docker stop {service_dir}"
+                # Avoid unnecessary f-string work if not needed in previous branches
+                return f"docker stop {service_dir}"
 
     else:
         raise CLIException("unknown cmd_type :", cmd_type)
-    return cmd
 
 
 def get_stop_cmd(poc_workspace: str, service_dir_name: str):
-    service_dir = os.path.join(poc_workspace, service_dir_name)
-    stop_file = os.path.join(service_dir, "shutdown.fl")
-    return f"touch {stop_file}"
+    # Use join once for full path, avoid creating a local variable unless useful
+    return f"touch {os.path.join(poc_workspace, service_dir_name, 'shutdown.fl')}"
 
 
 def get_nvflare_home() -> Optional[str]:
@@ -546,10 +552,8 @@ def _sort_service_cmds(cmd_type, service_cmds: list, service_config) -> list:
 
 
 def get_cmd_path(poc_workspace, service_name, cmd):
-    service_dir = os.path.join(poc_workspace, service_name)
-    bin_dir = os.path.join(service_dir, SC.STARTUP)
-    cmd_path = os.path.join(bin_dir, cmd)
-    return cmd_path
+    # Use join directly, no need for multiple local variables
+    return os.path.join(poc_workspace, service_name, SC.STARTUP, cmd)
 
 
 def is_poc_ready(poc_workspace: str, service_config, project_config):
