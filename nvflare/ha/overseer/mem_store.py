@@ -25,7 +25,10 @@ def _primary_key(sp):
 
 def get_all_sp(project):
     with data_store_lock:
-        sp_list = [v for v in data_store["SP"].values() if v["project"] == project]
+        sp_list = []
+        for v in data_store["SP"].values():
+            if v["project"] == project:
+                sp_list.append(v)
     return sp_list
 
 
