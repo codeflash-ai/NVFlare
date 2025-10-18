@@ -43,6 +43,11 @@ from nvflare.tool.api_utils import shutdown_system
 from nvflare.tool.poc.service_constants import FlareServiceConstants as SC
 from nvflare.utils.cli_utils import get_hidden_nvflare_config_path, get_or_create_hidden_nvflare_dir, hocon_to_string
 
+_HE_BUILDER = {
+    "path": "nvflare.lighter.impl.he.HEBuilder",
+    "args": {},
+}
+
 DEFAULT_WORKSPACE = "/tmp/nvflare/poc"
 DEFAULT_PROJECT_NAME = "example_project"
 
@@ -352,10 +357,10 @@ def add_docker_builder(use_docker: bool, project_config: OrderedDict):
 
 def add_he_builder(use_he: bool, project_config: OrderedDict):
     if use_he:
-        he_builder = {
-            "path": "nvflare.lighter.impl.he.HEBuilder",
-            "args": {},
-        }
+        # Avoid creating he_builder dict on every call for efficiency - instantiate once and reuse.
+        # The dictionary is not mutated after insert, so this is safe.
+        # This reduces the redundant dict allocation.
+        he_builder = _HE_BUILDER
         project_config["builders"].insert(-1, he_builder)
 
     return project_config
