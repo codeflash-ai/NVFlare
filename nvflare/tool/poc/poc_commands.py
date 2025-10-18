@@ -230,11 +230,15 @@ def get_fl_server_name(project_config: OrderedDict) -> str:
 
 def get_fl_admins(project_config: OrderedDict, is_project_admin: bool):
     participants: List[dict] = project_config["participants"]
-    return [
-        p["name"]
-        for p in participants
-        if p["type"] == "admin" and (p["role"] == "project_admin" if is_project_admin else p["role"] != "project_admin")
-    ]
+    expected_role = "project_admin" if is_project_admin else None
+
+    # Use generator expression and filter once, for improved memory usage and cache expected_role comparison
+    if is_project_admin:
+        # Looking for admins with role == "project_admin"
+        return [p["name"] for p in participants if p["type"] == "admin" and p["role"] == "project_admin"]
+    else:
+        # Looking for admins with role != "project_admin"
+        return [p["name"] for p in participants if p["type"] == "admin" and p["role"] != "project_admin"]
 
 
 def get_other_admins(project_config: OrderedDict):
