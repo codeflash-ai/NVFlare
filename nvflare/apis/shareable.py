@@ -109,7 +109,10 @@ class Shareable(dict):
         return self.get_header(ReservedHeaderKey.PEER_PROPS, None)
 
     def get_peer_prop(self, key: str, default):
-        props = self.get_peer_props()
+        header = self.get(ReservedHeaderKey.HEADERS, None)
+        if not header or not isinstance(header, dict):
+            return default
+        props = header.get(ReservedHeaderKey.PEER_PROPS, None)
         if not isinstance(props, dict):
             return default
         return props.get(key, default)
