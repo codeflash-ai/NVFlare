@@ -35,8 +35,7 @@ class FegApi:
         self.endpoint = endpoint
         self.device_info = device_info
         self.user_info = user_info
-        temp = device_info.copy()
-        del temp["device_id"]
+        temp = {k: v for k, v in device_info.items() if k != "device_id"}
         device_qs = urlencode(temp)
         user_qs = urlencode(user_info)
 
@@ -46,6 +45,8 @@ class FegApi:
             HttpHeaderKey.DEVICE_INFO: device_qs,
             HttpHeaderKey.USER_INFO: user_qs,
         }
+
+        self._task_url = urljoin(self.endpoint, "task")
 
     def get_job(self, request: JobRequest) -> JobResponse:
         return self._do_post(
@@ -58,7 +59,7 @@ class FegApi:
     def get_task(self, request: TaskRequest) -> TaskResponse:
         return self._do_post(
             clazz=TaskResponse,
-            url=urljoin(self.endpoint, "task"),
+            url=self._task_url,
             params={EdgeProtoKey.JOB_ID: request.job_id},
             body={EdgeProtoKey.COOKIE: request.cookie} if request.cookie else {},
         )
@@ -94,5 +95,7 @@ class FegApi:
         response = requests.post(url, params=params, json=body, headers=self.common_headers)
         code = response.status_code
         if code == 200:
-            return clazz(**response.json())
-        raise ApiError(code, "ERROR", f"API Call failed with status code {code}", response.json())
+            json_resp = response.json()
+            return clazz(**json_resp)
+        json_resp = response.json()
+        raise ApiError(code, "ERROR", f"API Call failed with status code {code}", json_resp)
