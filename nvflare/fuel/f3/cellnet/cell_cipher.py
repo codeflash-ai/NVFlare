@@ -107,8 +107,9 @@ def _sym_dec(k: bytes, n: bytes, m: bytes):
 
 
 class SessionKeyManager:
+
     def __init__(self, root_ca):
-        self.key_hash_dict = dict()
+        self.key_hash_dict = {}
         self.root_ca = root_ca
         self.root_ca_pub_key = root_ca.public_key()
 
