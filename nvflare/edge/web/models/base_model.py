@@ -49,7 +49,7 @@ class BaseModel(dict):
         return urlencode(self, doseq=True)
 
     def get_device_id(self) -> Optional[str]:
-        device_info = self.get("device_info")
+        device_info = dict.get(self, "device_info")
         if not device_info:
             return None
 
