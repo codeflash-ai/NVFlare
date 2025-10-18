@@ -24,6 +24,8 @@ from typing import Union
 
 from nvflare.apis.workspace import Workspace
 
+_FMT_KEY_PATTERN = re.compile(r"%\((.*?)\)[sd]")
+
 DEFAULT_LOG_JSON = "log_config.json"
 
 
@@ -223,12 +225,10 @@ class JsonFormatter(BaseFormatter):
 
     def generate_fmt_dict(self, fmt: str) -> dict:
         # Parse the `fmt` string and create a mapping of keys to LogRecord attributes
-        matches = re.findall(r"%\((.*?)\)([sd])", fmt)
-
+        # Use the precompiled regex pattern for efficiency.
         fmt_dict = {}
-        for key, _ in matches:
+        for key in _FMT_KEY_PATTERN.findall(fmt):
             fmt_dict[key] = key
-
         return fmt_dict
 
     def formatMessageDict(self, record) -> dict:
@@ -274,7 +274,9 @@ class LoggerNameFilter(logging.Filter):
         )
 
     def matches_name(self, name, logger_names) -> bool:
-        return any(name.startswith(logger_name) or name.split(".")[-1] == logger_name for logger_name in logger_names)
+        if name.startswith(tuple(logger_names)):
+            return True
+        return name.rsplit(".", 1)[-1] in set(logger_names)
 
 
 def get_module_logger(module=None, name=None) -> logging.Logger:
