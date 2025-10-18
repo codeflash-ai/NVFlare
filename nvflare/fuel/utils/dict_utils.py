@@ -45,11 +45,8 @@ def merge_dict(dict1, dict2):
 
 
 def extract_first_level_primitive(d):
-    result = {}
-    for k, v in d.items():
-        if type(v) in (int, float, bool, str):
-            result[k] = v
-    return result
+    primitive_types = {int, float, bool, str}
+    return {k: v for k, v in d.items() if type(v) in primitive_types}
 
 
 def augment(to_dict: dict, from_dict: dict, from_override_to=False, append_list="components") -> str:
