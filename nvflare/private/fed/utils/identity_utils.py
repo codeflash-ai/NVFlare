@@ -74,10 +74,10 @@ def get_parent_site_name(fqsn: str) -> Optional[str]:
     if not isinstance(fqsn, str):
         raise ValueError(f"expect fqsn to be str but got {type(fqsn)}")
 
-    parts = fqsn.split(".")
+    parts = fqsn.rsplit(".", 2)
     if len(parts) <= 1:
         return None
-    return parts[len(parts) - 2]
+    return parts[-2]
 
 
 class IdentityAsserter:
