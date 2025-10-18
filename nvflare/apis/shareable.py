@@ -147,9 +147,9 @@ class Shareable(dict):
 def make_reply(rc, headers=None) -> Shareable:
     reply = Shareable()
     reply.set_return_code(rc)
+    # If headers is a dict, batch update using .update() for performance
     if headers and isinstance(headers, dict):
-        for k, v in headers.items():
-            reply.set_header(k, v)
+        reply[ReservedHeaderKey.HEADERS].update(headers)
     return reply
 
 
