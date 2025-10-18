@@ -80,7 +80,8 @@ def check_non_negative_number(name, value):
 
 
 def check_str(name, value):
-    check_object_type(name, value, str)
+    if type(value) is not str:
+        check_object_type(name, value, str)
 
 
 def check_non_empty_str(name, value):
@@ -125,15 +126,19 @@ def _determine_candidates_value(var_name: str, candidates, base: list):
     if not isinstance(candidates, list):
         raise ValueError(f"invalid '{var_name}': expect str or list of str but got {type(candidates)}")
 
+    # Optimization: convert base to a set for O(1) lookups, only if not empty and more than 1 item.
+    base_set = set(base) if base else set()
     validated = []
+    seen = set()
     for c in candidates:
         if not isinstance(c, str):
             raise ValueError(f"invalid value in '{var_name}': must be str but got {type(c)}")
         n = c.strip()
-        if n not in base:
+        if n not in base_set:
             raise ValueError(f"invalid value '{n}' in '{var_name}'")
-        if n not in validated:
+        if n not in seen:
             validated.append(n)
+            seen.add(n)
 
     return validated
 
