@@ -47,5 +47,6 @@ class DeviceInfo(BaseModel):
             return "missing device_id", None
 
         device_info = DeviceInfo(device_id)
-        device_info.update(device_info_dict)
+        if device_info_dict:
+            device_info.update(device_info_dict)
         return "", device_info
