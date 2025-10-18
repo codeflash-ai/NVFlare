@@ -178,11 +178,15 @@ _PROP_VALIDATORS = {
 
 class Entity:
     def __init__(self, scope: str, name: str, props: dict, parent=None):
-        if not props:
+        # Avoid if not props since {} is falsy and can cause an unnecessary dict creation
+        if props is None:
             props = {}
 
+        # Explicit local variable for lookup, slightly faster in Python interpreter
+        validators = _PROP_VALIDATORS
+
         for k, v in props.items():
-            validator = _PROP_VALIDATORS.get(k)
+            validator = validators.get(k)
             if validator is not None:
                 validator(scope, k, v)
         self.name = name
@@ -208,16 +212,16 @@ class Entity:
         Returns: property value
 
         """
-        value = self.get_prop(key)
-        if value:
-            return value
-        elif not self.parent:
+        # Minimize lookups
+        val = self.props.get(key)
+        if val:
+            return val
+        parent = self.parent
+        if not parent:
             return default
-        else:
-            # get the value from the parent
-            if not fb_key:
-                fb_key = key
-            return self.parent.get_prop(fb_key, default)
+        # Only create fb_key if truly needed (in-hot path)
+        fbkey = fb_key if fb_key else key
+        return parent.get_prop(fbkey, default)
 
     def __str__(self):
         return f"Entity[{self.name=}, {self.props=}, {self.parent=}]"
@@ -286,11 +290,15 @@ class Participant(Entity):
         Returns: a host name
 
         """
-        h = self.get_prop(PropKey.DEFAULT_HOST)
-        if h:
-            return h
-        else:
-            return self.name
+        # Use local var for attribute access and PropKey, more efficient attribute access path
+        props = self.props
+        key = PropKey.DEFAULT_HOST
+        # Inline fast-path to avoid method call if possible
+        if key in props:
+            h = props[key]
+            if h:
+                return h
+        return self.name
 
     def get_listening_host(self) -> Optional[ListeningHost]:
         """Get listening host property of the participant
