@@ -178,11 +178,15 @@ _PROP_VALIDATORS = {
 
 class Entity:
     def __init__(self, scope: str, name: str, props: dict, parent=None):
-        if not props:
+        # Avoid if not props since {} is falsy and can cause an unnecessary dict creation
+        if props is None:
             props = {}
 
+        # Explicit local variable for lookup, slightly faster in Python interpreter
+        validators = _PROP_VALIDATORS
+
         for k, v in props.items():
-            validator = _PROP_VALIDATORS.get(k)
+            validator = validators.get(k)
             if validator is not None:
                 validator(scope, k, v)
         self.name = name
@@ -208,16 +212,16 @@ class Entity:
         Returns: property value
 
         """
-        value = self.get_prop(key)
-        if value:
-            return value
-        elif not self.parent:
+        # Minimize lookups
+        val = self.props.get(key)
+        if val:
+            return val
+        parent = self.parent
+        if not parent:
             return default
-        else:
-            # get the value from the parent
-            if not fb_key:
-                fb_key = key
-            return self.parent.get_prop(fb_key, default)
+        # Only create fb_key if truly needed (in-hot path)
+        fbkey = fb_key if fb_key else key
+        return parent.get_prop(fbkey, default)
 
     def __str__(self):
         return f"Entity[{self.name=}, {self.props=}, {self.parent=}]"
@@ -552,21 +556,28 @@ class Project(Entity):
             If 'types' is a list of types, participants of these types are returned;
 
         """
-        if not types:
+        if types is None:
             # get all types
             return list(self._all_names.values())
 
         if isinstance(types, str):
-            types = [types]
-        elif not isinstance(types, list):
-            raise ValueError(f"types must be a str or List[str] but got {type(types)}")
+            # Fast path for common usage (single type, e.g. CLIENT); skip unnecessary checks
+            ps = self._participants_by_types.get(types)
+            return list(ps) if ps else []
 
-        result = []
-        processed_types = []  # in case 'types' contains duplicates
+        if not isinstance(types, list):
+            raise ValueError(f"types must be a str or List[str] but got {type(types)}")
+        # Remove duplicated types efficiently using set while preserving order
+        seen = set()
+        unique_types = []
         for t in types:
-            if t not in processed_types:
-                ps = self._participants_by_types.get(t)
-                if ps:
-                    result.extend(ps)
-                processed_types.append(t)
+            if t not in seen:
+                unique_types.append(t)
+                seen.add(t)
+        result = []
+        pb_types = self._participants_by_types
+        for t in unique_types:
+            ps = pb_types.get(t)
+            if ps:
+                result.extend(ps)
         return result
