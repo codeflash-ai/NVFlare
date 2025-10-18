@@ -362,14 +362,19 @@ def add_he_builder(use_he: bool, project_config: OrderedDict):
 
 
 def update_clients(clients: List[str], n_clients: int, project_config: OrderedDict) -> OrderedDict:
+    # Avoid unnecessary list appends and iterations by combining list comprehensions
     requested_clients = prepare_clients(clients, n_clients)
 
     participants: List[dict] = project_config["participants"]
+
+    # Use list comprehension for filtering clients for greater efficiency
     new_participants = [p for p in participants if p["type"] != "client"]
 
-    for client in requested_clients:
-        client_dict = {"name": client, "type": "client", "org": "nvidia"}
-        new_participants.append(client_dict)
+    # Use list concatenation instead of repeated `append` inside a loop
+    new_participants += [
+        {"name": client, "type": "client", "org": "nvidia"}
+        for client in requested_clients
+    ]
 
     project_config["participants"] = new_participants
 
@@ -378,9 +383,8 @@ def update_clients(clients: List[str], n_clients: int, project_config: OrderedDi
 
 def prepare_clients(clients, number_of_clients):
     if not clients:
-        clients = []
-        for i in range(number_of_clients):
-            clients.append(f"site-{(i + 1)}")
+        # More efficient to use list comprehension for sequence creation
+        clients = [f"site-{i + 1}" for i in range(number_of_clients)]
 
     return clients
 
