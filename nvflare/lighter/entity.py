@@ -17,6 +17,32 @@ from nvflare.apis.utils.format_check import name_check
 
 from .constants import DEFINED_PARTICIPANT_TYPES, DEFINED_ROLES, ConnSecurity, ParticipantType, PropKey
 
+_DEFAULT_TCP_SCHEME = "tcp"
+
+_DEFAULT_PORT = 0
+
+_DEFAULT_CONN_SEC = ConnSecurity.CLEAR
+
+_LOCALHOST = "localhost"
+
+_SERVER_TYPE = ParticipantType.SERVER
+
+_ADMIN_TYPE = ParticipantType.ADMIN
+
+_ROLE_KEY = PropKey.ROLE
+
+_DEFAULT_HOST_KEY = PropKey.DEFAULT_HOST
+
+_LISTENING_HOST_KEY = PropKey.LISTENING_HOST
+
+_SCHEME_KEY = PropKey.SCHEME
+
+_HOST_NAMES_KEY = PropKey.HOST_NAMES
+
+_PORT_KEY = PropKey.PORT
+
+_CONN_SECURITY_KEY = PropKey.CONN_SECURITY
+
 
 class ListeningHost:
     def __init__(self, scheme, host_names, default_host, port, conn_sec):
@@ -131,19 +157,24 @@ def parse_listening_host(value, scope=None, prop_key=None) -> ListeningHost:
 
     Returns: a ListeningHost object
     """
-    if isinstance(value, str):
+    # Avoid repeated isinstance lookups
+    typ = type(value)
+    if typ is str:
         # old format - for server only
         return ListeningHost(None, None, value, None, None)
-    elif isinstance(value, dict):
-        scheme = value.get(PropKey.SCHEME)
-        host_names = value.get(PropKey.HOST_NAMES)
-        default_host = value.get(PropKey.DEFAULT_HOST)
-        port = value.get(PropKey.PORT)
-        conn_sec = value.get(PropKey.CONN_SECURITY)
-        return ListeningHost(scheme, host_names, default_host, port, conn_sec)
+    elif typ is dict:
+        get = value.get
+        # Reduce attribute lookups by using constants above
+        return ListeningHost(
+            get(_SCHEME_KEY),
+            get(_HOST_NAMES_KEY),
+            get(_DEFAULT_HOST_KEY),
+            get(_PORT_KEY),
+            get(_CONN_SECURITY_KEY)
+        )
     else:
         raise ValueError(
-            f"bad value for {prop_key} '{value}' in {scope}: invalid type {type(value)}; must be str or dict"
+            f"bad value for {prop_key} '{value}' in {scope}: invalid type {typ}; must be str or dict"
         )
 
 
@@ -178,11 +209,15 @@ _PROP_VALIDATORS = {
 
 class Entity:
     def __init__(self, scope: str, name: str, props: dict, parent=None):
-        if not props:
+        # Avoid if not props since {} is falsy and can cause an unnecessary dict creation
+        if props is None:
             props = {}
 
+        # Explicit local variable for lookup, slightly faster in Python interpreter
+        validators = _PROP_VALIDATORS
+
         for k, v in props.items():
-            validator = _PROP_VALIDATORS.get(k)
+            validator = validators.get(k)
             if validator is not None:
                 validator(scope, k, v)
         self.name = name
@@ -208,16 +243,16 @@ class Entity:
         Returns: property value
 
         """
-        value = self.get_prop(key)
-        if value:
-            return value
-        elif not self.parent:
+        # Minimize lookups
+        val = self.props.get(key)
+        if val:
+            return val
+        parent = self.parent
+        if not parent:
             return default
-        else:
-            # get the value from the parent
-            if not fb_key:
-                fb_key = key
-            return self.parent.get_prop(fb_key, default)
+        # Only create fb_key if truly needed (in-hot path)
+        fbkey = fb_key if fb_key else key
+        return parent.get_prop(fbkey, default)
 
     def __str__(self):
         return f"Entity[{self.name=}, {self.props=}, {self.parent=}]"
@@ -259,11 +294,11 @@ class Participant(Entity):
         if err:
             raise ValueError(reason)
 
-        if type == ParticipantType.ADMIN:
+        if type == _ADMIN_TYPE:
             if not props:
                 raise ValueError(f"missing role for admin '{name}'")
 
-            role = props.get(PropKey.ROLE)
+            role = props.get(_ROLE_KEY)
             if not role:
                 raise ValueError(f"missing role for admin '{name}'")
 
@@ -286,11 +321,9 @@ class Participant(Entity):
         Returns: a host name
 
         """
-        h = self.get_prop(PropKey.DEFAULT_HOST)
-        if h:
-            return h
-        else:
-            return self.name
+        # Inline for tiny performance improvement, avoid extra conditional
+        h = self.get_prop(_DEFAULT_HOST_KEY)
+        return h if h else self.name
 
     def get_listening_host(self) -> Optional[ListeningHost]:
         """Get listening host property of the participant
@@ -298,25 +331,26 @@ class Participant(Entity):
         Returns: a ListeningHost object, or None if the property is not defined.
 
         """
-        h = self.get_prop(PropKey.LISTENING_HOST)
+        h = self.get_prop(_LISTENING_HOST_KEY)
         if not h:
             return None
 
         lh = parse_listening_host(h)
+        # Inline fields with cached constants and minimize attribute lookup
         if not lh.scheme:
-            lh.scheme = "tcp"
+            lh.scheme = _DEFAULT_TCP_SCHEME
 
         if not lh.port:
-            lh.port = 0  # any port
+            lh.port = _DEFAULT_PORT  # any port
 
         if not lh.conn_sec:
-            lh.conn_sec = ConnSecurity.CLEAR
+            lh.conn_sec = _DEFAULT_CONN_SEC
 
         if not lh.default_host:
-            if self.type == ParticipantType.SERVER:
+            if self.type == _SERVER_TYPE:
                 lh.default_host = self.get_default_host()
             else:
-                lh.default_host = "localhost"
+                lh.default_host = _LOCALHOST
 
         return lh
 
