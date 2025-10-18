@@ -378,9 +378,8 @@ def update_clients(clients: List[str], n_clients: int, project_config: OrderedDi
 
 def prepare_clients(clients, number_of_clients):
     if not clients:
-        clients = []
-        for i in range(number_of_clients):
-            clients.append(f"site-{(i + 1)}")
+        # Using list comprehension and precomputing the strings is much faster than repeated append + f-string
+        clients = [f"site-{i}" for i in range(1, number_of_clients + 1)]
 
     return clients
 
