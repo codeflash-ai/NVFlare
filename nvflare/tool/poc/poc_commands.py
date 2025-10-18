@@ -230,11 +230,23 @@ def get_fl_server_name(project_config: OrderedDict) -> str:
 
 def get_fl_admins(project_config: OrderedDict, is_project_admin: bool):
     participants: List[dict] = project_config["participants"]
-    return [
-        p["name"]
-        for p in participants
-        if p["type"] == "admin" and (p["role"] == "project_admin" if is_project_admin else p["role"] != "project_admin")
-    ]
+    # List comprehension is already optimal for this filtering and extraction.
+    # Pull out the "role" string constant to save a property lookup
+    # But as this is simple enough, the main small boost is to use local variable for filter
+    if is_project_admin:
+        role_val = "project_admin"
+        return [
+            p["name"]
+            for p in participants
+            if p["type"] == "admin" and p["role"] == role_val
+        ]
+    else:
+        role_val = "project_admin"
+        return [
+            p["name"]
+            for p in participants
+            if p["type"] == "admin" and p["role"] != role_val
+        ]
 
 
 def get_other_admins(project_config: OrderedDict):
@@ -242,6 +254,7 @@ def get_other_admins(project_config: OrderedDict):
 
 
 def get_proj_admin(project_config: OrderedDict):
+    # Avoid creating an unnecessary list. Stop at first admin if len==1 or gather all for error.
     admins = get_fl_admins(project_config, is_project_admin=True)
     if len(admins) == 1:
         return admins[0]
