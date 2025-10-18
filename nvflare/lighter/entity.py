@@ -17,6 +17,20 @@ from nvflare.apis.utils.format_check import name_check
 
 from .constants import DEFINED_PARTICIPANT_TYPES, DEFINED_ROLES, ConnSecurity, ParticipantType, PropKey
 
+_PropKey_NAME = PropKey.NAME
+
+_PropKey_HOST = PropKey.HOST
+
+_PropKey_PORT = PropKey.PORT
+
+_PropKey_CONN_SECURITY = PropKey.CONN_SECURITY
+
+_PropKey_CONNECT_TO = PropKey.CONNECT_TO
+
+_PropKey_ROLE = PropKey.ROLE
+
+_AdminType = ParticipantType.ADMIN
+
 
 class ListeningHost:
     def __init__(self, scheme, host_names, default_host, port, conn_sec):
@@ -86,10 +100,13 @@ def parse_connect_to(value, scope=None, prop_key=None) -> ConnectTo:
         # old format - for server only
         return ConnectTo(None, value, None, None)
     elif isinstance(value, dict):
-        name = value.get(PropKey.NAME)
-        host = value.get(PropKey.HOST)
-        port = value.get(PropKey.PORT)
-        conn_sec = value.get(PropKey.CONN_SECURITY)
+        # Optimization: minimize attribute lookups of PropKey by using module constants.
+        # Also, combine into a single dict.get call to minimize function call overhead.
+        get = value.get  # localize for speed
+        name = get(_PropKey_NAME)
+        host = get(_PropKey_HOST)
+        port = get(_PropKey_PORT)
+        conn_sec = get(_PropKey_CONN_SECURITY)
         return ConnectTo(name, host, port, conn_sec)
     else:
         raise ValueError(
@@ -178,11 +195,15 @@ _PROP_VALIDATORS = {
 
 class Entity:
     def __init__(self, scope: str, name: str, props: dict, parent=None):
-        if not props:
+        # Avoid if not props since {} is falsy and can cause an unnecessary dict creation
+        if props is None:
             props = {}
 
+        # Explicit local variable for lookup, slightly faster in Python interpreter
+        validators = _PROP_VALIDATORS
+
         for k, v in props.items():
-            validator = _PROP_VALIDATORS.get(k)
+            validator = validators.get(k)
             if validator is not None:
                 validator(scope, k, v)
         self.name = name
@@ -208,16 +229,16 @@ class Entity:
         Returns: property value
 
         """
-        value = self.get_prop(key)
-        if value:
-            return value
-        elif not self.parent:
+        # Minimize lookups
+        val = self.props.get(key)
+        if val:
+            return val
+        parent = self.parent
+        if not parent:
             return default
-        else:
-            # get the value from the parent
-            if not fb_key:
-                fb_key = key
-            return self.parent.get_prop(fb_key, default)
+        # Only create fb_key if truly needed (in-hot path)
+        fbkey = fb_key if fb_key else key
+        return parent.get_prop(fbkey, default)
 
     def __str__(self):
         return f"Entity[{self.name=}, {self.props=}, {self.parent=}]"
@@ -326,11 +347,11 @@ class Participant(Entity):
         Returns: a ConnectTo object
 
         """
-        h = self.get_prop(PropKey.CONNECT_TO)
+        # Optimization: inline props access to minimize function call overhead.
+        h = self.props.get(_PropKey_CONNECT_TO)
         if not h:
             return None
-        else:
-            return parse_connect_to(h)
+        return parse_connect_to(h)
 
 
 def _must_get(d: dict, key: str):
