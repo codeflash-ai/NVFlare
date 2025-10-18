@@ -46,9 +46,8 @@ class TupleAggregator(Aggregator):
 
 class MockDataConverter(DataConverter):
     def _gen_feature(self, num_bins, fid):
-        mask = [0] * SAMPLE_SIZE
-        for i in range(SAMPLE_SIZE):
-            mask[i] = (i + fid) % num_bins
+        # Vectorized mask computation for efficiency
+        mask = [(i + fid) % num_bins for i in range(SAMPLE_SIZE)]
         return FeatureContext(fid, mask, num_bins)
 
     def _setup(self):
