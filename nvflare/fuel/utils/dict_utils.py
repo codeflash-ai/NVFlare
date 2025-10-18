@@ -36,7 +36,8 @@ def update_configs_with_envs(configs, env):
         elif isinstance(v, dict):
             configs[k] = update_configs_with_envs(v, env)
         elif isinstance(v, str):
-            configs[k] = v.format(**env)
+            if "{" in v:
+                configs[k] = v.format(**env)
     return configs
 
 
