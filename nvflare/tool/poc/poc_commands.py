@@ -112,8 +112,8 @@ def get_service_command(cmd_type: str, prod_dir: str, service_dir, service_confi
 
 
 def get_stop_cmd(poc_workspace: str, service_dir_name: str):
-    service_dir = os.path.join(poc_workspace, service_dir_name)
-    stop_file = os.path.join(service_dir, "shutdown.fl")
+    # Use join with three arguments to build the full path in a single call for efficiency
+    stop_file = os.path.join(poc_workspace, service_dir_name, "shutdown.fl")
     return f"touch {stop_file}"
 
 
