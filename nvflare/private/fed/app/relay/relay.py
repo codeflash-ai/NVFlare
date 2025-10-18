@@ -40,6 +40,12 @@ from nvflare.private.defs import ClientType
 from nvflare.private.fed.authenticator import Authenticator, validate_auth_headers
 from nvflare.private.fed.utils.identity_utils import TokenVerifier
 
+_PARSER = argparse.ArgumentParser()
+
+_PARSER.add_argument("--workspace", "-m", type=str, help="WORKSPACE folder", required=True)
+_PARSER.add_argument("--relay_config", "-s", type=str, help="relay config json file", required=True)
+_PARSER.add_argument("--set", metavar="KEY=VALUE", nargs="*")
+
 
 class CellnetMonitor:
     def __init__(self, stop_event: threading.Event, workspace: str):
@@ -61,11 +67,8 @@ class _ConfigKey:
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--workspace", "-m", type=str, help="WORKSPACE folder", required=True)
-    parser.add_argument("--relay_config", "-s", type=str, help="relay config json file", required=True)
-    parser.add_argument("--set", metavar="KEY=VALUE", nargs="*")
-    args = parser.parse_args()
+    # Using the pre-built _PARSER for efficiency.
+    args = _PARSER.parse_args()
     return args
 
 
