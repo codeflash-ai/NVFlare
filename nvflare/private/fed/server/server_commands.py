@@ -558,9 +558,8 @@ class ServerCommands(object):
 
     @classmethod
     def get_app_command(cls, topic: str):
-        reg = cls.app_cmd_registry.get(topic)
-        if reg is not None:
-            return reg
-
-        # see whether a default func is registered
-        return cls.app_cmd_registry.get("*")
+        try:
+            reg = cls.app_cmd_registry[topic]
+        except KeyError:
+            reg = cls.app_cmd_registry.get("*")
+        return reg
