@@ -296,11 +296,40 @@ def local_provision(
 
 
 def get_service_config(project_config):
+    participants: List[dict] = project_config["participants"]
+    
+    server = None
+    proj_admin = None
+    other_admins = []
+    clients = []
+    
+    server_count = 0
+    proj_admin_count = 0
+    for p in participants:
+        if p["type"] == "server":
+            if server is None:
+                server = p["name"]
+            server_count += 1
+        elif p["type"] == "admin":
+            if p.get("role") == "project_admin":
+                if proj_admin is None:
+                    proj_admin = p["name"]
+                proj_admin_count += 1
+            else:
+                other_admins.append(p["name"])
+        elif p["type"] == "client":
+            clients.append(p["name"])
+    
+    if server_count != 1:
+        raise CLIException(f"project should only have one server, but {server_count} are provided: {[p['name'] for p in participants if p['type'] == 'server']}")
+    if proj_admin_count != 1:
+        raise CLIException(f"project should have only one project admin, but {proj_admin_count} are provided: {[p['name'] for p in participants if p['type'] == 'admin' and p.get('role') == 'project_admin']}")
+    
     service_config = {
-        SC.FLARE_SERVER: get_fl_server_name(project_config),
-        SC.FLARE_PROJ_ADMIN: get_proj_admin(project_config),
-        SC.FLARE_OTHER_ADMINS: get_other_admins(project_config),
-        SC.FLARE_CLIENTS: get_fl_client_names(project_config),
+        SC.FLARE_SERVER: server,
+        SC.FLARE_PROJ_ADMIN: proj_admin,
+        SC.FLARE_OTHER_ADMINS: other_admins,
+        SC.FLARE_CLIENTS: clients,
         SC.IS_DOCKER_RUN: is_docker_run(project_config),
     }
     return service_config
