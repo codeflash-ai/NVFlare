@@ -97,7 +97,12 @@ class Shareable(dict):
         self.set_header(key=ReservedHeaderKey.COOKIE_JAR, value=jar)
 
     def get_cookie(self, name: str, default=None):
-        jar = self.get_cookie_jar()
+        header = self.get(ReservedHeaderKey.HEADERS, None)
+        if not header:
+            return default
+        if not isinstance(header, dict):
+            raise ValueError("header object must be a dict, but got {}".format(type(header)))
+        jar = header.get(ReservedHeaderKey.COOKIE_JAR, None)
         if not jar:
             return default
         return jar.get(name, default)
