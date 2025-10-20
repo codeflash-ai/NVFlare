@@ -25,10 +25,14 @@ from nvflare.lighter.spec import Builder
 
 def _update_log_filenames(config, new_log_root: str = "/applog"):
     handlers = config.get("handlers", {})
-    for handler_name, handler_cfg in handlers.items():
+    join = os.path.join  # localize for loop performance
+    new_log_root_local = new_log_root  # minor optimization
+
+    # Pre-calculate which handlers need updating and update in a tight loop
+    for handler_cfg in handlers.values():
         filename = handler_cfg.get("filename")
         if filename:
-            handler_cfg["filename"] = os.path.join(new_log_root, filename)
+            handler_cfg["filename"] = join(new_log_root_local, filename)
     return config
 
 
