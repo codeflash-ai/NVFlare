@@ -222,8 +222,12 @@ class ConfigService:
 
     @classmethod
     def config_not_found_msg(cls, file_basename, search_dirs):
+        # Optimize by inlining join/keys as a class-level static cache—file extensions formats rarely change at runtime.
+        # This avoids reconstructing the string for every call.
+        if not hasattr(cls, "_conf_exts_cache"):
+            cls._conf_exts_cache = "|".join(ConfigFormat.config_ext_formats().keys())
         basename = os.path.splitext(file_basename)[0]
-        conf_exts = "|".join(ConfigFormat.config_ext_formats().keys())
+        conf_exts = cls._conf_exts_cache
         msg = f"cannot find file '{basename}[{conf_exts}]'"
         msg = f"{msg} from search paths: '{search_dirs}'" if search_dirs else msg
         return msg
