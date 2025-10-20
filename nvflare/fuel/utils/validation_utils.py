@@ -80,7 +80,9 @@ def check_non_negative_number(name, value):
 
 
 def check_str(name, value):
-    check_object_type(name, value, str)
+    # Optimized: use isinstance for str/subclasses, skip extra function call unless necessary
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be <class 'str'>, but got {type(value)}.")
 
 
 def check_non_empty_str(name, value):

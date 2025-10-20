@@ -47,7 +47,9 @@ def get_scope_property(scope_name: str, key: str, default=None) -> Any:
     check_str("scope_name", scope_name)
     check_str("key", key)
     data_bus = DataBus()
-    result = data_bus.get_data(_scope_prop_key(scope_name, key))
+    # Inlined scope property key construction for reduced call overhead
+    prop_key = f"{scope_name}::{key}"
+    result = data_bus.get_data(prop_key)
     if result is None:
         result = default
     return result
