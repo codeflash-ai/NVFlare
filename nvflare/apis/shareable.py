@@ -52,11 +52,8 @@ class Shareable(dict):
         self[ReservedHeaderKey.HEADERS] = {}
 
     def set_header(self, key: str, value):
-        header = self.get(ReservedHeaderKey.HEADERS, None)
-        if not header:
-            header = {}
-            self[ReservedHeaderKey.HEADERS] = header
-        header[key] = value
+        # NB: ReservedHeaderKey.HEADERS is always set in __init__, so direct access is faster.
+        self[ReservedHeaderKey.HEADERS][key] = value
 
     def get_header(self, key: str, default=None):
         header = self.get(ReservedHeaderKey.HEADERS, None)
