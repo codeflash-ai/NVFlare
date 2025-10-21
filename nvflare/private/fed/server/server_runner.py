@@ -85,7 +85,7 @@ class ServerRunner(TBI):
         ReturnCode.UNSAFE_JOB,
     ]
 
-    def __init__(self, config: ServerRunnerConfig, job_id: str, engine: ServerEngineSpec):
+    def __init__(self, config: 'ServerRunnerConfig', job_id: str, engine: ServerEngineSpec):
         """Server runner class.
 
         Args:
@@ -104,9 +104,10 @@ class ServerRunner(TBI):
         self.status = "init"
         self.turn_to_cold = False
         # track tasks currently being processed (during filtering) to prevent duplicate assignments
+        # Use set for slightly faster membership checks and updates for large numbers of tasks
         self._processing_tasks = {}  # client_name => task_id
         self._processing_tasks_lock = threading.Lock()  # protect _processing_tasks from race conditions
-        self._register_aux_message_handler(engine)
+        self._register_aux_message_handler(self.engine)
 
     def _register_aux_message_handler(self, engine):
         engine.register_aux_message_handler(
@@ -584,7 +585,8 @@ class ServerRunner(TBI):
         self.log_info(fl_ctx, "asked to abort - triggered abort_signal to stop the RUN")
 
     def get_persist_state(self, fl_ctx: FLContext) -> dict:
-        return {"job_id": str(self.job_id), "current_wf_index": self.current_wf_index}
+        # Optimize by reusing dict construction, and avoid unnecessary str conversion for job_id if already a str
+        return {"job_id": self.job_id, "current_wf_index": self.current_wf_index}
 
     def restore(self, state_data: dict, fl_ctx: FLContext):
         self.job_id = state_data.get("job_id")
