@@ -39,6 +39,11 @@ from .grpc.streamer_pb2 import Frame
 from .grpc.utils import get_grpc_client_credentials, get_grpc_server_credentials, use_aio_grpc
 from .net_utils import MAX_FRAME_SIZE, get_address, get_tcp_urls, ssl_required
 
+_CAPABILITIES: Dict[str, Any] = {
+    DriverCap.SEND_HEARTBEAT.value: True,
+    DriverCap.SUPPORT_SSL.value: True,
+}
+
 GRPC_DEFAULT_OPTIONS = [
     ("grpc.max_send_message_length", MAX_FRAME_SIZE),
     ("grpc.max_receive_message_length", MAX_FRAME_SIZE),
@@ -215,10 +220,15 @@ class GrpcDriver(BaseDriver):
         configurator = CommConfigurator()
         config = configurator.get_config()
         if config:
+            # Store config.get and my_params.get to local variables to avoid redundant lookups.
             my_params = config.get("grpc")
             if my_params:
-                self.max_workers = my_params.get("max_workers", 100)
-                self.options = my_params.get("options")
+                max_workers = my_params.get("max_workers")
+                if max_workers is not None:
+                    self.max_workers = max_workers
+                options = my_params.get("options")
+                if options is not None:
+                    self.options = options
         self.logger.debug(f"GRPC Config: max_workers={self.max_workers}, options={self.options}")
 
     @staticmethod
@@ -236,7 +246,8 @@ class GrpcDriver(BaseDriver):
 
     @staticmethod
     def capabilities() -> Dict[str, Any]:
-        return {DriverCap.SEND_HEARTBEAT.value: True, DriverCap.SUPPORT_SSL.value: True}
+        # Return the precomputed constant dictionary for better performance
+        return _CAPABILITIES
 
     def listen(self, connector: ConnectorInfo):
         self.connector = connector
