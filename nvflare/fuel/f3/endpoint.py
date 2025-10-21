@@ -52,7 +52,10 @@ class Endpoint:
         self.properties[key] = value
 
     def get_prop(self, key):
-        return self.properties.get(key)
+        try:
+            return self.properties[key]
+        except KeyError:
+            return None
 
 
 class EndpointMonitor(ABC):
