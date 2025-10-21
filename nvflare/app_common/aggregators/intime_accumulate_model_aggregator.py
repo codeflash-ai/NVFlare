@@ -36,11 +36,7 @@ def _is_nested_aggregation_weights(aggregation_weights):
 
 
 def _get_missing_keys(ref_dict: dict, dict_to_check: dict):
-    result = []
-    for k in ref_dict:
-        if k not in dict_to_check:
-            result.append(k)
-    return result
+    return [k for k in ref_dict if k not in dict_to_check]
 
 
 class InTimeAccumulateWeightedAggregator(Aggregator):
