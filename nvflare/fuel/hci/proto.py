@@ -218,47 +218,50 @@ def validate_proto(line: str):
 
     Returns: deserialized JSON document
     """
-    all_types = [
-        ProtoKey.STRING,
-        ProtoKey.SUCCESS,
-        ProtoKey.ERROR,
-        ProtoKey.TABLE,
-        ProtoKey.COMMAND,
-        ProtoKey.TOKEN,
-        ProtoKey.SHUTDOWN,
-        ProtoKey.DICT,
-    ]
-    types_with_data = [
-        ProtoKey.STRING,
-        ProtoKey.SUCCESS,
-        ProtoKey.ERROR,
-        ProtoKey.DICT,
-        ProtoKey.COMMAND,
-        ProtoKey.TOKEN,
-        ProtoKey.SHUTDOWN,
-    ]
+    # Cache ProtoKey values locally for faster access
+    pk_STRING = ProtoKey.STRING
+    pk_SUCCESS = ProtoKey.SUCCESS
+    pk_ERROR = ProtoKey.ERROR
+    pk_TABLE = ProtoKey.TABLE
+    pk_COMMAND = ProtoKey.COMMAND
+    pk_TOKEN = ProtoKey.TOKEN
+    pk_SHUTDOWN = ProtoKey.SHUTDOWN
+    pk_DICT = ProtoKey.DICT
+    pk_DATA = ProtoKey.DATA
+    pk_TYPE = ProtoKey.TYPE
+    pk_ROWS = ProtoKey.ROWS
+
+    all_types = {pk_STRING, pk_SUCCESS, pk_ERROR, pk_TABLE, pk_COMMAND, pk_TOKEN, pk_SHUTDOWN, pk_DICT}
+    types_with_data = {pk_STRING, pk_SUCCESS, pk_ERROR, pk_DICT, pk_COMMAND, pk_TOKEN, pk_SHUTDOWN}
     try:
         json_data = json.loads(line)
-        assert isinstance(json_data, dict)
-        assert ProtoKey.DATA in json_data
-        data = json_data[ProtoKey.DATA]
-        assert isinstance(data, list)
+        if not (isinstance(json_data, dict) and pk_DATA in json_data):
+            return None
+        data = json_data[pk_DATA]
+        if not isinstance(data, list):
+            return None
+
+        # Predefine .get for speed in hot loop
         for item in data:
-            assert isinstance(item, dict)
-            assert ProtoKey.TYPE in item
-            it = item[ProtoKey.TYPE]
-            assert it in all_types
+            if not (isinstance(item, dict) and pk_TYPE in item):
+                return None
+            it = item[pk_TYPE]
+            if it not in all_types:
+                return None
 
             if it in types_with_data:
-                item_data = item.get(ProtoKey.DATA, None)
-                assert item_data is not None
-                assert isinstance(item_data, str) or isinstance(item_data, dict)
-            elif it == ProtoKey.TABLE:
-                assert ProtoKey.ROWS in item
-                rows = item[ProtoKey.ROWS]
-                assert isinstance(rows, list)
+                item_data = item.get(pk_DATA)
+                if item_data is None or not (isinstance(item_data, str) or isinstance(item_data, dict)):
+                    return None
+            elif it == pk_TABLE:
+                if pk_ROWS not in item:
+                    return None
+                rows = item[pk_ROWS]
+                if not isinstance(rows, list):
+                    return None
                 for row in rows:
-                    assert isinstance(row, list)
+                    if not isinstance(row, list):
+                        return None
 
         return json_data
     except Exception:
