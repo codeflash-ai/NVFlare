@@ -124,6 +124,13 @@ class Job:
         self.run_record = None  # job id, dispatched time/UUID, finished time, completion code (normal, aborted)
         self.run_aborted = False
 
+        # Precompute a mapping of participant -> app for fast job lookup in get_application_name
+        self._participant_application_map = {}
+        for app, sites in self.deploy_map.items():
+            for site in sites:
+                if site not in self._participant_application_map:
+                    self._participant_application_map[site] = app
+
     def get_deployment(self) -> Dict[str, List[str]]:
         """Returns the deployment configuration.
 
@@ -158,11 +165,8 @@ class Job:
 
     def get_application_name(self, participant):
         """Get the application name for the specified participant."""
-        for app in self.deploy_map:
-            for site in self.deploy_map[app]:
-                if site == participant:
-                    return app
-        return None
+        # Use precomputed mapping for O(1) lookup
+        return self._participant_application_map.get(participant, None)
 
     def get_resource_requirements(self):
         """Returns app resource requirements.

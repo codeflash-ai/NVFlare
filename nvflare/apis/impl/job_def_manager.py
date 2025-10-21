@@ -90,14 +90,18 @@ class _ScheduleJobFilter(_JobFilter):
     def __init__(self, store):
         self.store = store
         self.result = []
+        # Cache class constants for use in filter_job to avoid repeated attribute lookups
+        self._scheduled_tag = _OBJ_TAG_SCHEDULED
+        self._status_key = JobMetaKey.STATUS.value
+        self._submitted_status_val = RunStatus.SUBMITTED.value
 
     def filter_job(self, info: JobInfo):
-        status = info.meta.get(JobMetaKey.STATUS.value)
-        if status == RunStatus.SUBMITTED.value:
+        status = info.meta.get(self._status_key)
+        if status == self._submitted_status_val:
             self.result.append(job_from_meta(info.meta))
         elif status:
             # skip this job in all future calls (so the meta file of this job won't be read)
-            self.store.tag_object(uri=info.uri, tag=_OBJ_TAG_SCHEDULED)
+            self.store.tag_object(uri=info.uri, tag=self._scheduled_tag)
         return True
 
 
