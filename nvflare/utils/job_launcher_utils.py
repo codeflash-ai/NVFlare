@@ -19,18 +19,30 @@ from nvflare.apis.fl_constant import FLContextKey, JobConstants, SystemVarName
 from nvflare.apis.job_def import JobMetaKey
 from nvflare.apis.job_launcher_spec import JobProcessArgs
 
+_BASE_SERVER_JOB_ARGS = [
+    JobProcessArgs.WORKSPACE,
+    JobProcessArgs.STARTUP_CONFIG_FILE,
+    JobProcessArgs.APP_ROOT,
+    JobProcessArgs.JOB_ID,
+    JobProcessArgs.TOKEN_SIGNATURE,
+    JobProcessArgs.PARENT_URL,
+    JobProcessArgs.ROOT_URL,
+    JobProcessArgs.SERVICE_HOST,
+    JobProcessArgs.SERVICE_PORT,
+    JobProcessArgs.SSID,
+    JobProcessArgs.HA_MODE,
+]
+
 
 def _job_args_str(job_args, arg_names) -> str:
-    result = ""
-    sep = ""
+    strs = []
     for name in arg_names:
         e = job_args.get(name)
         if not e:
             continue
         n, v = e
-        result += f"{sep}{n} {v}"
-        sep = " "
-    return result
+        strs.append(f"{n} {v}")
+    return " ".join(strs)
 
 
 def get_client_job_args(include_exe_module=True, include_set_options=True):
@@ -71,30 +83,17 @@ def generate_client_command(fl_ctx) -> str:
 
 
 def get_server_job_args(include_exe_module=True, include_set_options=True):
-    result = []
+    # Build argument list efficiently using tuple concatenation and avoiding repeated list mutations
+    args = ()
     if include_exe_module:
-        result.append(JobProcessArgs.EXE_MODULE)
+        args += (JobProcessArgs.EXE_MODULE,)
 
-    result.extend(
-        [
-            JobProcessArgs.WORKSPACE,
-            JobProcessArgs.STARTUP_CONFIG_FILE,
-            JobProcessArgs.APP_ROOT,
-            JobProcessArgs.JOB_ID,
-            JobProcessArgs.TOKEN_SIGNATURE,
-            JobProcessArgs.PARENT_URL,
-            JobProcessArgs.ROOT_URL,
-            JobProcessArgs.SERVICE_HOST,
-            JobProcessArgs.SERVICE_PORT,
-            JobProcessArgs.SSID,
-            JobProcessArgs.HA_MODE,
-        ]
-    )
+    args += tuple(_BASE_SERVER_JOB_ARGS)
 
     if include_set_options:
-        result.append(JobProcessArgs.OPTIONS)
+        args += (JobProcessArgs.OPTIONS,)
 
-    return result
+    return list(args)
 
 
 def generate_server_command(fl_ctx) -> str:
