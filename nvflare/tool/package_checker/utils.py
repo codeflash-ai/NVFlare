@@ -122,9 +122,12 @@ def get_required_args_for_overseer_agent(overseer_agent_class: str, role: str) -
 
 
 def _prepare_data(args: dict):
-    data = dict(role=args["role"], project=args["project"])
-    if args["role"] == NVFlareRole.SERVER:
-        data["sp_end_point"] = ":".join([args["name"], args["fl_port"], args["admin_port"]])
+    role = args["role"]
+    data = {"role": role, "project": args["project"]}
+    if role == NVFlareRole.SERVER:
+        # Avoid creating a list object and intermediate join, use string formatting (f-string) for efficiency.
+        # This significantly reduces overhead for string construction, especially in tight loops.
+        data["sp_end_point"] = f"{args['name']}:{args['fl_port']}:{args['admin_port']}"
     return data
 
 
