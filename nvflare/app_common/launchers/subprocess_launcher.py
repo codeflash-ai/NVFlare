@@ -28,37 +28,45 @@ from nvflare.utils.job_launcher_utils import add_custom_dir_to_path
 
 
 def get_line(buffer: bytearray):
-    """Read a line from the binary buffer. It treats all combinations of \n and \r as line breaks.
+    """Read a line from the binary buffer. It treats all combinations of
+    and
+    as line breaks.
 
-    Args:
-        buffer: A binary buffer
+       Args:
+           buffer: A binary buffer
 
-    Returns:
-        (line, remaining): Return the first line as str and the remaining buffer.
-        line is None if no newline found
+       Returns:
+           (line, remaining): Return the first line as str and the remaining buffer.
+           line is None if no newline found
 
     """
     size = len(buffer)
-    r = buffer.find(b"\r")
-    if r < 0:
-        r = size + 1
-    n = buffer.find(b"\n")
-    if n < 0:
-        n = size + 1
-    index = min(r, n)
 
-    if index >= size:
+    # Find the earliest position for either '\r' or '\n'
+    r = buffer.find(b"\r")
+    n = buffer.find(b"\n")
+
+    # Instead of handling -1 cases sequentially, use this to avoid conditional jumps
+    if r == -1 and n == -1:
+        # No line break found
         return None, buffer
 
-    # if \r and \n are adjacent, treat them as one
-    if abs(r - n) == 1:
-        index = index + 1
+    # The next line break character
+    index = r if (n == -1 or (r != -1 and r < n)) else n
 
+    # Check if both r and n are present and are adjacent, treat as one
+    # We compare abs(r - n) == 1 for adjacency, but both must be non-negative
+    if r != -1 and n != -1 and abs(r - n) == 1:
+        index = max(r, n)  # cover both
+    # Get line as str, rstrip to remove trailing whitespace (matches original behavior)
     line = buffer[:index].decode().rstrip()
+
+    # Calculate remaining efficiently
     if index >= size - 1:
         remaining = bytearray()
     else:
         remaining = buffer[index + 1 :]
+
     return line, remaining
 
 
