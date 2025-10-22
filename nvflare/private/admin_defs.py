@@ -50,7 +50,7 @@ class Message(object):
         self.set_header(MsgHeader.META, meta_str)
 
     def get_meta(self):
-        meta_str = self.get_header(MsgHeader.META, None)
+        meta_str = self.headers.get(MsgHeader.META, None)
         if meta_str:
             return json.loads(meta_str)
         else:
