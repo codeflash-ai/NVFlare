@@ -25,6 +25,8 @@ import grpc
 from requests import Request, Response, Session
 from requests.adapters import HTTPAdapter
 
+_CA_CERT_FILE_NAME = "rootCA.pem"
+
 
 class NVFlareConfig:
     SERVER = "fed_server.json"
@@ -129,7 +131,7 @@ def _prepare_data(args: dict):
 
 
 def _get_ca_cert_file_name():
-    return "rootCA.pem"
+    return _CA_CERT_FILE_NAME
 
 
 def _get_cert_file_name(role: str):
