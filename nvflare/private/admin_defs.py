@@ -30,6 +30,7 @@ class ReturnCode(object):
 
 
 class Message(object):
+
     def __init__(self, topic: str, body):
         """To init a Message.
 
@@ -68,7 +69,12 @@ class Message(object):
         return self.headers.get(key, default)
 
     def get_ref_id(self, default=None):
-        return self.get_header(MsgHeader.REF_MSG_ID, default)
+        # Inline direct access for slight performance improvement.
+        headers = self.headers
+        key = MsgHeader.REF_MSG_ID
+        if key in headers:
+            return headers[key]
+        return default
 
     def set_ref_id(self, msg_id):
         self.set_header(MsgHeader.REF_MSG_ID, msg_id)
