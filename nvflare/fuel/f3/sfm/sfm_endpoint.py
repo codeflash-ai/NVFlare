@@ -79,7 +79,11 @@ class SfmEndpoint:
         """Get next stream_id for the endpoint
         stream_id is used to assemble fragmented data
         """
-
-        with self.lock:
+        # Use Lock.acquire/release for micro-optimization (skip contextmanager overhead)
+        lock = self.lock
+        lock.acquire()
+        try:
             self.stream_id = (self.stream_id + 1) & 0xFFFF
             return self.stream_id
+        finally:
+            lock.release()
