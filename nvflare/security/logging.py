@@ -29,16 +29,19 @@ def is_secure() -> bool:
     Returns:
         A boolean indicates whether logging is set in secure mode.
     """
-    secure_logging = os.environ.get(SECURE_LOGGING_VAR_NAME, False)
-    if isinstance(secure_logging, str):
-        secure_logging = secure_logging.lower()
-        return secure_logging == "1" or secure_logging == "true"
-    else:
-        return False
+    val = os.environ.get(SECURE_LOGGING_VAR_NAME)
+    if isinstance(val, str):
+        val_lower = val.lower()
+        return val_lower == "1" or val_lower == "true"
+    return False
 
 
 class _Frame(object):
-    def __init__(self, line_text):
+    def __init__(self, line_text: str) -> None:
+        self.line_text = line_text
+        self.count = 1
+
+    def __init__(self, line_text: str) -> None:
         self.line_text = line_text
         self.count = 1
 
@@ -54,27 +57,32 @@ def _format_exc_securely() -> str:
     exc_type, exc_obj, tb = sys.exc_info()
     result = ["Traceback (most recent call last):"]
     frames = []
-    last_frame = None
+    last_line_text = None
+    last_count = 1
 
-    # traceback (tb) stack is a linked list of frames
+    # Stack with optimized frame handling
     while tb:
         file_name = tb.tb_frame.f_code.co_filename
         func_name = tb.tb_frame.f_code.co_name
         line = tb.tb_lineno
         line_text = f'File "{file_name}", line {line}, in {func_name}'
 
-        if not last_frame or last_frame.line_text != line_text:
-            last_frame = _Frame(line_text)
-            frames.append(last_frame)
+        if line_text != last_line_text:
+            if last_line_text is not None:
+                frames.append((last_line_text, last_count))
+            last_line_text = line_text
+            last_count = 1
         else:
-            # same text as last frame
-            last_frame.count += 1
+            last_count += 1
         tb = tb.tb_next
 
-    for f in frames:
-        result.append(f.line_text)
-        if f.count > 1:
-            result.append(f"[Previous line repeated {f.count - 1} more times]")
+    if last_line_text is not None:
+        frames.append((last_line_text, last_count))
+
+    for line_text, count in frames:
+        result.append(line_text)
+        if count > 1:
+            result.append(f"[Previous line repeated {count - 1} more times]")
 
     text = "\r\n  ".join(result)
     return "{}\r\n{}".format(text, f"Exception Type: {exc_type}")
