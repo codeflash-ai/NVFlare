@@ -74,9 +74,11 @@ _received_hw_info = MsgHighWaterInfo("Received")
 
 
 def new_cell_message(headers: dict, payload=None):
-    msg_headers = {}
+    # Avoid constructing an unnecessary dictionary when headers is empty or falsy
     if headers:
-        msg_headers.update(headers)
+        msg_headers = dict(headers)
+    else:
+        msg_headers = {}
     return Message(msg_headers, payload)
 
 
