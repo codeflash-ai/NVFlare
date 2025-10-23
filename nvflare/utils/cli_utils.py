@@ -13,6 +13,7 @@
 # limitations under the License.
 import os
 import pathlib
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -80,7 +81,7 @@ def find_startup_kit_location() -> str:
 def load_hidden_config() -> ConfigTree:
     hidden_dir = get_or_create_hidden_nvflare_dir()
     hidden_nvflare_config_file = get_hidden_nvflare_config_path(str(hidden_dir))
-    nvflare_config = load_config(hidden_nvflare_config_file)
+    nvflare_config = _cached_load_config(hidden_nvflare_config_file)
     return nvflare_config
 
 
@@ -320,3 +321,9 @@ def append_if_not_in_list(arr: List, item) -> List:
         arr.append(item)
 
     return arr
+
+
+@lru_cache(maxsize=1)
+def _cached_load_config(hidden_nvflare_config_file: str) -> ConfigTree:
+    # Memoize config load to eliminate repeated disk/parsing for the same file
+    return load_config(hidden_nvflare_config_file)
