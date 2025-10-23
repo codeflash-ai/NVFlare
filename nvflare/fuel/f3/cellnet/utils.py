@@ -19,7 +19,6 @@ import nvflare.fuel.utils.fobs as fobs
 from nvflare.fuel.f3.cellnet.defs import Encoding, MessageHeaderKey
 from nvflare.fuel.f3.message import Message
 from nvflare.fuel.f3.streaming.stream_const import StreamHeaderKey
-from nvflare.fuel.utils.buffer_list import BufferList
 from nvflare.fuel.utils.time_utils import time_to_string
 
 cell_mapping = {
@@ -100,7 +99,8 @@ def buffer_len(buffer: Any):
     if not buffer:
         buf_len = 0
     elif isinstance(buffer, list):
-        buf_len = BufferList(buffer).get_size()
+        # Inline the buffer-list get_size logic for less overhead
+        buf_len = sum(len(b) for b in buffer)
     else:
         buf_len = len(buffer)
 
