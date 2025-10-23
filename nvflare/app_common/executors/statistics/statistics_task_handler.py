@@ -229,9 +229,8 @@ class StatisticsTaskHandler(TaskHandler):
         inputs: Shareable,
         fl_ctx: FLContext,
     ) -> Histogram:
-
+        # --- Most common branch is existence of both stats, so nest here for early return ---
         if StC.STATS_MIN in inputs and StC.STATS_MAX in inputs:
-
             global_min_value = self._get_global_value_from_input(StC.STATS_MIN, dataset_name, feature_name, inputs)
             global_max_value = self._get_global_value_from_input(StC.STATS_MAX, dataset_name, feature_name, inputs)
             if global_min_value is not None and global_max_value is not None:
@@ -288,35 +287,30 @@ class StatisticsTaskHandler(TaskHandler):
             return feature_bin_range[0]
 
     def get_number_of_bins(self, feature_name: str, hist_config: dict) -> int:
+        # Avoid repeated error message rendering and branching, and avoid exception in case of normal flow.
+        if feature_name in hist_config:
+            num_of_bins = hist_config[feature_name].get(StC.STATS_BINS)
+            if num_of_bins:
+                return num_of_bins
+        elif "*" in hist_config:
+            default_config = hist_config["*"]
+            num_of_bins = default_config.get(StC.STATS_BINS)
+            if num_of_bins:
+                return num_of_bins
+
         err_msg = (
             f"feature name = '{feature_name}': "
             f"missing required '{StC.STATS_BINS}' config in histogram config = {hist_config}"
         )
-        try:
-            num_of_bins = None
-            if feature_name in hist_config:
-                num_of_bins = hist_config[feature_name][StC.STATS_BINS]
-            else:
-                if "*" in hist_config:
-                    default_config = hist_config["*"]
-                    num_of_bins = default_config[StC.STATS_BINS]
-            if num_of_bins:
-                return num_of_bins
-            else:
-                raise Exception(err_msg)
-
-        except KeyError:
-            raise Exception(err_msg)
+        raise Exception(err_msg)
 
     def get_bin_range(
         self, feature_name: str, global_min_value: float, global_max_value: float, hist_config: dict
     ) -> List[float]:
-
-        global_bin_range = [global_min_value, global_max_value]
+        # Single-pass: try config, if not present, fallback to global min/max.
         bin_range = get_feature_bin_range(feature_name, hist_config)
         if bin_range is None:
-            bin_range = global_bin_range
-
+            bin_range = [global_min_value, global_max_value]
         return bin_range
 
     def get_quantiles_and_centroids(
@@ -333,11 +327,12 @@ class StatisticsTaskHandler(TaskHandler):
         return result
 
     def _get_global_value_from_input(self, statistic_key: str, dataset_name: str, feature_name: str, inputs):
-        global_value = None
-        if dataset_name in inputs[statistic_key]:
-            if feature_name in inputs[statistic_key][dataset_name]:
-                global_value = inputs[statistic_key][dataset_name][feature_name]
-            elif "*" in inputs[StC.STATS_MIN][dataset_name]:
-                global_value = inputs[statistic_key][dataset_name][feature_name]
-
-        return global_value
+        # Remove duplicate lookups and ensure correct fallback behavior with "*".
+        stats_for_key = inputs[statistic_key]
+        if dataset_name in stats_for_key:
+            dataset_stats = stats_for_key[dataset_name]
+            if feature_name in dataset_stats:
+                return dataset_stats[feature_name]
+            elif "*" in dataset_stats:
+                return dataset_stats["*"]
+        return None
