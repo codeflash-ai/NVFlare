@@ -80,7 +80,8 @@ def check_non_negative_number(name, value):
 
 
 def check_str(name, value):
-    check_object_type(name, value, str)
+    if type(value) is not str:
+        check_object_type(name, value, str)
 
 
 def check_non_empty_str(name, value):

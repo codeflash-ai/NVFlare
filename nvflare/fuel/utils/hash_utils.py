@@ -13,7 +13,7 @@
 # limitations under the License.
 import hashlib
 
-from nvflare.fuel.utils.validation_utils import check_number_range, check_str
+from nvflare.fuel.utils.validation_utils import check_number_range
 
 # A large prime number as virtual hash table size
 PRIME = 100003
@@ -58,7 +58,9 @@ class UniformHash:
         Returns:
             The bucket index between 0 and num_buckets-1
         """
-        check_str("key", key)
+        # Inline type check for reduced call overhead
+        if type(key) is not str:
+            raise TypeError(f"key must be {str}, but got {type(key)}.")
 
         # Step 1, calculate hash value using first 8 bytes of SHA256
         sha_bytes = hashlib.sha256(key.encode()).digest()
@@ -68,10 +70,9 @@ class UniformHash:
         virtual_hash = sha % PRIME
 
         # Step 3, evenly distribute the virtual hash to real buckets
-        # n is a float number representing the bucket index
-        n = virtual_hash / self.virtual_hashes_per_bucket
+        n = virtual_hash // self.virtual_hashes_per_bucket
         if n < self.num_buckets:
-            index = int(n)
+            index = n
         else:
             # The last bucket may have more virtual hashes than others
             # Evenly spread the extra to the first few buckets
