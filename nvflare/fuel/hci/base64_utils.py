@@ -14,6 +14,8 @@
 
 import base64
 
+_decode_ascii = bytes.decode
+
 
 def bytes_to_b64str(data_bytes) -> str:
     """Convert binary to base64-encoded string."""
@@ -70,8 +72,8 @@ def text_file_to_b64str(file_name) -> str:
 
 
 def str_to_b64str(s: str) -> str:
-    data_bytes = s.encode("utf-8")
-    return bytes_to_b64str(data_bytes)
+    # Avoiding named variable, do in one line for small perf win
+    return base64.b64encode(s.encode("utf-8")).decode("ascii")
 
 
 def b64str_to_str(b64str: str) -> str:
