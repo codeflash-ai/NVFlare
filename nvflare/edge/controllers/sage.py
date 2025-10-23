@@ -329,4 +329,5 @@ class ScatterAndGatherForEdge(Controller):
         return False
 
     def _accept_update(self, update: Shareable, fl_ctx: FLContext):
-        return self.assessor.process_child_update(update, fl_ctx)
+        assessor = self.assessor
+        return assessor.process_child_update(update, fl_ctx)
