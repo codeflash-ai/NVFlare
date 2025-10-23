@@ -100,8 +100,7 @@ def _can_be_included(evals, target, max_parallel_actions) -> EvalInclusionRC:
     evaluator_actions = 0
     evaluatee_actions = 0
     evaluator_t, evaluatee_t = target
-    for p in evals:
-        evaluator_p, evaluatee_p = p
+    for evaluator_p, evaluatee_p in evals:
         if evaluator_t == evaluator_p:
             # the evaluator is already in the evals - we allow only once for the same evaluator
             return EvalInclusionRC.EVALUATOR_CONFLICT
@@ -113,8 +112,7 @@ def _can_be_included(evals, target, max_parallel_actions) -> EvalInclusionRC:
         if evaluatee_t == evaluator_p:
             # the evaluatee of the target is already an evaluator of another evaluation
             evaluatee_actions += 1
-
-        if evaluatee_t == evaluatee_p and evaluator_p != evaluatee_p:
+        elif evaluatee_t == evaluatee_p and evaluator_p != evaluatee_p:
             # the evaluatee of the target is already an evaluatee of another evaluation
             evaluatee_actions += 1
 
