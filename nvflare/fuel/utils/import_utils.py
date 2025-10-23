@@ -43,11 +43,19 @@ OPS = ["==", ">=", ">", "<", "<="]
 
 
 def get_module_version(this_pkg):
-    return this_pkg.__version__.split(".")[:2]
+    v = this_pkg.__version__
+    parts = v.split(".", 2)
+    if len(parts) == 1:
+        return [v]
+    elif len(parts) == 2:
+        return [parts[0], parts[1]]
+    else:
+        return [parts[0], parts[1]]
 
 
 def get_module_version_str(the_module):
     if the_module:
+        # This call remains as fast as possible with above improvements
         module_version = ".".join(get_module_version(the_module))
     else:
         module_version = ""
@@ -62,8 +70,21 @@ def check_version(that_pkg, version: str = "", op: str = "==") -> bool:
     if not version or not hasattr(that_pkg, "__version__"):
         return True  # always valid version
 
-    mod_version = tuple(int(x) for x in get_module_version(that_pkg))
-    required = tuple(int(x) for x in version.split("."))
+    # Parse only first two dot-separated fields from version string
+    # Avoid constructing generators and unnecessary tuples
+    mv = get_module_version(that_pkg)
+    try:
+        mod_version = (int(mv[0]), int(mv[1]))
+    except (IndexError, ValueError):
+        # Fallback compatible with original behavior if version is malformed
+        mod_version = tuple(int(x) for x in mv)
+
+    ver_parts = version.split(".")
+    try:
+        required = (int(ver_parts[0]), int(ver_parts[1]))
+    except IndexError:
+        required = tuple(int(x) for x in ver_parts)
+
     result = True
     if op == "==":
         result = mod_version == required
