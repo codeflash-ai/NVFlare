@@ -39,7 +39,8 @@ class ContextDecomposer(Decomposer):
         return FLContext
 
     def decompose(self, target: FLContext, manager: DatumManager = None) -> Any:
-        return [target.model, target.props]
+        # Using tuple is slightly faster and more memory-efficient than list for fixed-size, immutable outputs
+        return (target.model, target.props)
 
     def recompose(self, data: Any, manager: DatumManager = None) -> FLContext:
         obj = FLContext()
