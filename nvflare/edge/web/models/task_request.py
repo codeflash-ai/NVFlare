@@ -37,12 +37,30 @@ class TaskRequest(BaseModel):
         if error:
             return error, None
 
-        error, device_info = DeviceInfo.extract_from_dict(d)
-        if error:
-            return error, None
+        # Use local variables to temporarily cache popped values
+        device_info_dict = d.pop(EdgeProtoKey.DEVICE_INFO, None)
+        if not device_info_dict:
+            return "missing device_info", None
 
-        _, user_info = UserInfo.extract_from_dict(d)
+        device_id = device_info_dict.pop(EdgeProtoKey.DEVICE_ID, None)
+        if not device_id:
+            return "missing device_id", None
 
-        task_req = TaskRequest(device_info, user_info, d.pop(EdgeProtoKey.JOB_ID), d.pop(EdgeProtoKey.COOKIE, {}))
-        task_req.update(d)
+        device_info = DeviceInfo(device_id)
+        device_info.update(device_info_dict)
+
+        user_info_dict = d.pop(EdgeProtoKey.USER_INFO, None)
+        if user_info_dict:
+            user_info = UserInfo()
+            user_info.update(user_info_dict)
+        else:
+            user_info = None
+
+        job_id = d.pop(EdgeProtoKey.JOB_ID)
+        cookie = d.pop(EdgeProtoKey.COOKIE, {})
+
+        # Update all remaining keys in d to the task_req (only once, after pops)
+        task_req = TaskRequest(device_info, user_info, job_id, cookie)
+        if d:
+            task_req.update(d)
         return "", task_req
