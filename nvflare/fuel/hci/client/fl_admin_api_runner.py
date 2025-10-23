@@ -31,8 +31,9 @@ def api_command_wrapper(api_command_result):
         api_command_result: result of the api command
 
     """
+    status = api_command_result["status"]
     print(api_command_result)
-    if not api_command_result["status"] == "SUCCESS":
+    if status != "SUCCESS":
         raise RuntimeError("command was not successful!")
 
     return api_command_result
