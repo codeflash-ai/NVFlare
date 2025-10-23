@@ -28,7 +28,8 @@ def get_system_state():
 def set_system_state(state):
     global system_state
     system_state = state
-    return get_system_state()
+    # Directly return state instead of calling get_system_state to avoid an unnecessary function call.
+    return state
 
 
 def update_sp_state(project, now, heartbeat_timeout=10):
