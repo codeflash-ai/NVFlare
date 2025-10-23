@@ -62,8 +62,9 @@ def experimental(reason):
             orig_cls_name = obj.__name__
 
             class ExperimentalClass(obj):
-                def __new__(obj, *args, **kwargs):
-                    warnings.simplefilter("always", Warning)
+                __doc__ = obj.__doc__
+
+                def __new__(cls, *args, **kwargs):
                     warnings.warn(
                         fmt.format(
                             name=orig_cls_name,
@@ -72,8 +73,7 @@ def experimental(reason):
                         category=Warning,
                         stacklevel=2,
                     )
-                    warnings.simplefilter("default", Warning)
-                    return super(ExperimentalClass, obj).__new__(obj)
+                    return super(ExperimentalClass, cls).__new__(cls)
 
             return ExperimentalClass
         else:  # function
@@ -81,7 +81,6 @@ def experimental(reason):
 
             @functools.wraps(obj)
             def new_func(*args, **kwargs):
-                warnings.simplefilter("always", Warning)
                 warnings.warn(
                     fmt.format(
                         name=obj.__name__,
@@ -90,7 +89,6 @@ def experimental(reason):
                     category=Warning,
                     stacklevel=2,
                 )
-                warnings.simplefilter("default", Warning)
                 return obj(*args, **kwargs)
 
             return new_func
