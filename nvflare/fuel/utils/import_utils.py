@@ -43,7 +43,14 @@ OPS = ["==", ">=", ">", "<", "<="]
 
 
 def get_module_version(this_pkg):
-    return this_pkg.__version__.split(".")[:2]
+    v = this_pkg.__version__
+    parts = v.split(".", 2)
+    if len(parts) == 1:
+        return [parts[0]]
+    elif len(parts) == 2:
+        return [parts[0], parts[1]]
+    else:
+        return [parts[0], parts[1]]
 
 
 def get_module_version_str(the_module):
@@ -62,8 +69,25 @@ def check_version(that_pkg, version: str = "", op: str = "==") -> bool:
     if not version or not hasattr(that_pkg, "__version__"):
         return True  # always valid version
 
-    mod_version = tuple(int(x) for x in get_module_version(that_pkg))
-    required = tuple(int(x) for x in version.split("."))
+    mv = get_module_version(that_pkg)
+    # Fast parse: do not use exceptions for control for typical case (most versions are well-formed)
+    # If mv doesn't have two elements or non-integer values, fallback to slow tuple parse
+    try:
+        mod_version_0 = int(mv[0])
+        mod_version_1 = int(mv[1])
+        mod_version = (mod_version_0, mod_version_1)
+    except (IndexError, ValueError):
+        mod_version = tuple(int(x) for x in mv)
+
+    # Only read first two version parts, avoid construction of tuple unless needed
+    ver_parts = version.split(".", 2)
+    try:
+        required_0 = int(ver_parts[0])
+        required_1 = int(ver_parts[1])
+        required = (required_0, required_1)
+    except (IndexError, ValueError):
+        required = tuple(int(x) for x in ver_parts)
+
     result = True
     if op == "==":
         result = mod_version == required
