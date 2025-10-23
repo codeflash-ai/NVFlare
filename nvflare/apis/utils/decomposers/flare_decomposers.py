@@ -54,7 +54,8 @@ class WorkspaceDecomposer(Decomposer):
         return Workspace
 
     def decompose(self, target: Workspace, manager: DatumManager = None) -> Any:
-        return [target.root_dir, target.site_name, target.config_folder]
+        # Convert to tuple instead of list for improved memory and performance
+        return (target.root_dir, target.site_name, target.config_folder)
 
     def recompose(self, data: Any, manager: DatumManager = None) -> Workspace:
         return Workspace(data[0], data[1], data[2])
