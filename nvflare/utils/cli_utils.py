@@ -23,6 +23,8 @@ from nvflare.fuel.utils.config import ConfigFormat
 from nvflare.fuel_opt.utils.pyhocon_loader import PyhoconConfig
 from nvflare.tool.job.job_client_const import CONFIG_CONF, JOB_TEMPLATES
 
+_CURDIR = os.path.curdir
+
 
 def get_home_dir() -> Path:
     return Path.home()
@@ -225,7 +227,7 @@ def find_job_templates_location(job_templates_dir: Optional[str] = None):
 
 
 def get_curr_dir():
-    return os.path.curdir
+    return _CURDIR
 
 
 def is_dir_empty(path: str):
