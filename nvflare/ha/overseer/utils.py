@@ -21,7 +21,6 @@ system_state = "ready"
 
 
 def get_system_state():
-    global system_state
     return system_state
 
 
