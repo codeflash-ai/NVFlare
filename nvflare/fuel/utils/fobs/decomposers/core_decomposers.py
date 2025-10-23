@@ -19,6 +19,8 @@ from typing import Any
 from nvflare.fuel.utils.fobs.datum import DatumManager
 from nvflare.fuel.utils.fobs.decomposer import Decomposer
 
+_datetime_fromisoformat = datetime.fromisoformat
+
 
 class TupleDecomposer(Decomposer):
     def supported_type(self):
@@ -61,4 +63,4 @@ class DatetimeDecomposer(Decomposer):
         return target.isoformat()
 
     def recompose(self, data: Any, manager: DatumManager = None) -> datetime:
-        return datetime.fromisoformat(data)
+        return _datetime_fromisoformat(data)
