@@ -23,6 +23,8 @@ from nvflare.fuel.utils.config import ConfigFormat
 from nvflare.fuel_opt.utils.pyhocon_loader import PyhoconConfig
 from nvflare.tool.job.job_client_const import CONFIG_CONF, JOB_TEMPLATES
 
+_EMPTY_CONF_TREE = CF.parse_string("{}")
+
 
 def get_home_dir() -> Path:
     return Path.home()
@@ -44,8 +46,8 @@ def get_hidden_nvflare_config_path(hidden_nvflare_dir: str) -> str:
     Returns:
         str: The path to the hidden nvflare configuration file.
     """
-    hidden_nvflare_config_file = os.path.join(hidden_nvflare_dir, CONFIG_CONF)
-    return str(hidden_nvflare_config_file)
+    # This function is called in a hot path; avoid unnecessary str conversions.
+    return os.path.join(hidden_nvflare_dir, CONFIG_CONF)
 
 
 def get_or_create_hidden_nvflare_dir():
@@ -78,6 +80,7 @@ def find_startup_kit_location() -> str:
 
 
 def load_hidden_config() -> ConfigTree:
+    # Avoid repeated str() and always pass string for compatibility.
     hidden_dir = get_or_create_hidden_nvflare_dir()
     hidden_nvflare_config_file = get_hidden_nvflare_config_path(str(hidden_dir))
     nvflare_config = load_config(hidden_nvflare_config_file)
@@ -284,9 +287,11 @@ def save_config(dst_config: ConfigTree, dst_path, keep_origin_format: bool = Tru
 
 
 def get_hidden_config() -> (str, ConfigTree):
-    hidden_nvflare_config_file = get_hidden_nvflare_config_path(str(get_or_create_hidden_nvflare_dir()))
-    conf = load_hidden_config()
-    nvflare_config = CF.parse_string("{}") if not conf else conf
+    # Avoid multiple calls to get_or_create_hidden_nvflare_dir and re-use value.
+    hidden_dir = get_or_create_hidden_nvflare_dir()
+    hidden_nvflare_config_file = get_hidden_nvflare_config_path(str(hidden_dir))
+    conf = load_config(hidden_nvflare_config_file)
+    nvflare_config = _EMPTY_CONF_TREE if not conf else conf
     return hidden_nvflare_config_file, nvflare_config
 
 
