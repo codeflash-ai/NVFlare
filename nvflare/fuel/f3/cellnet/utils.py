@@ -108,23 +108,44 @@ def buffer_len(buffer: Any):
 
 
 def shorten_fqcn(fqcn):
+    # Avoid list comprehensions, flatten the loop, as f-string is not a bottleneck
     parts = fqcn.split(".")
-    s_fqcn = ".".join([shorten_string(p) for p in parts])
-    return s_fqcn
+    # Manually join to avoid creating a list in memory
+    # Also, if only one part, just avoid the join overhead
+    if len(parts) == 1:
+        return shorten_string(parts[0])
+    out = parts[0]
+    for p in parts[1:]:
+        out += "." + shorten_string(p)
+    return out
 
 
 def get_msg_header_value(m, k):
+    # The actual header interface is already optimal for default, no change.
     return m.get_header(k, "?")
 
 
 def format_log_message(fqcn: str, message: Message, log: str) -> str:
+    append = context_append = None  # For minimal name lookup in loop
     context = [f"[ME={shorten_fqcn(fqcn)}"]
+    append = context.append
+
+    message_get_header = message.get_header  # Method lookup once
+    # Cache shorten_fqcn for use below
+    _shorten_fqcn = shorten_fqcn
+
+    # Inline get_msg_header_value for cell_mapping, reduces stack frame + function call overhead
     for k, v in cell_mapping.items():
-        string = f"{k}={shorten_fqcn(get_msg_header_value(message, v))}"
-        context.append(string)
+        header_val = message_get_header(v, "?")
+        string = f"{k}={_shorten_fqcn(header_val)}"
+        append(string)
+
     for k, v in msg_mapping.items():
-        string = f"{k}={get_msg_header_value(message, v)}"
-        context.append(string)
+        header_val = message_get_header(v, "?")
+        string = f"{k}={header_val}"
+        append(string)
+
+    # Directly format the final message to avoid an intermediate variable and repeated lookups
     return " ".join(context) + f"] {log}"
 
 
