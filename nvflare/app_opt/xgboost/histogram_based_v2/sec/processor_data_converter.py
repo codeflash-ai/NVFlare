@@ -48,12 +48,14 @@ class ProcessorDataConverter(DataConverter):
             raise RuntimeError(f"Data is not for GH Pairs: {decoder.get_data_set_id()}")
 
         float_array = decoder.decode_float_array()
-        result = []
-        self.num_samples = int(len(float_array) / 2)
+        num_samples = len(float_array) // 2
+        self.num_samples = num_samples
 
-        for i in range(self.num_samples):
-            result.append((self.float_to_int(float_array[2 * i]), self.float_to_int(float_array[2 * i + 1])))
-
+        # Batch processing using generator expression and zip to speed up tuple creation
+        float_to_int = self.float_to_int
+        result = [
+            (float_to_int(float_array[i]), float_to_int(float_array[i + 1])) for i in range(0, 2 * num_samples, 2)
+        ]
         return result
 
     def decode_aggregation_context(self, buffer: bytes, fl_ctx: FLContext) -> AggregationContext:
