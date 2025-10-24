@@ -27,6 +27,8 @@ from nvflare.lighter.ctx import ProvisionContext
 from nvflare.lighter.entity import Participant, Project
 from nvflare.lighter.spec import Packager
 
+_docker_archive_pattern = re.compile(r"DOCKER_ARCHIVE=([^\s]+)")
+
 BUILD_IMAGE_CMD = "build_cvm_image.sh"
 
 
@@ -40,7 +42,7 @@ def _extract_cvm_tar_path(output):
 
 def _extract_docker_tar_path(output):
     for line in output.splitlines():
-        match = re.search(r"DOCKER_ARCHIVE=([^\s]+)", line)
+        match = _docker_archive_pattern.search(line)
         if match:
             return match.group(1)
     return None
