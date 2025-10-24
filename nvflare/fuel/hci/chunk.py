@@ -63,14 +63,13 @@ class Header:
         return Header(marker, num1, num2)
 
     def to_bytes(self):
-        if self.marker == MARKER_DATA:
-            num1 = self.seq
-            num2 = self.size
+        # Fast path, avoid repeated branching and variable assignment
+        m = self.marker
+        if m == MARKER_DATA:
+            # Only do a single attribute lookup per variable
+            return HEADER_STRUCT.pack(m, self.seq, self.size)
         else:
-            num1 = 0
-            num2 = self.checksum
-
-        return HEADER_STRUCT.pack(self.marker, num1, num2)
+            return HEADER_STRUCT.pack(m, 0, self.checksum)
 
 
 class ChunkState:
