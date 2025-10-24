@@ -119,28 +119,30 @@ def get_address(params: dict) -> str:
 
 
 def parse_port_range(entry: Any):
-
+    # Fast path for int type
     if isinstance(entry, int):
         return range(entry, entry + 1)
 
+    # Avoid multiple splits and conversions
     parts = entry.split("-")
     if len(parts) == 1:
+        # Directly convert if single value
         num = int(parts[0])
         return range(num, num + 1)
-    lo = int(parts[0]) if parts[0] else LO_PORT
-    hi = int(parts[1]) if parts[1] else HI_PORT
+
+    # Precompute with minimal lookups
+    lo_str, hi_str = parts[0], parts[1]
+    lo = int(lo_str) if lo_str else LO_PORT
+    hi = int(hi_str) if hi_str else HI_PORT
     return range(lo, hi + 1)
 
 
 def parse_port_list(ranges: Any) -> list:
-    all_ranges = []
+    # Use list comprehension for faster iteration and memory efficiency
     if isinstance(ranges, list):
-        for r in ranges:
-            all_ranges.append(parse_port_range(r))
+        return [parse_port_range(r) for r in ranges]
     else:
-        all_ranges.append(parse_port_range(ranges))
-
-    return all_ranges
+        return [parse_port_range(ranges)]
 
 
 def check_tcp_port(port) -> bool:
