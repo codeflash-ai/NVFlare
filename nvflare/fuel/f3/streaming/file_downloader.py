@@ -223,7 +223,6 @@ class _ChunkConsumer(Consumer):
         assert isinstance(data, bytes)
         self.file.write(data)
         self.total_bytes += len(data)
-        self.logger.debug(f"received {self.total_bytes} bytes for file {self.file_path}")
         return {_StateKey.RECEIVED_BYTES: self.total_bytes}
 
     def download_failed(self, ref_id, reason: str):
