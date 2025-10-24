@@ -51,11 +51,7 @@ def shutdown_system_by_session(sess: Session, timeout_in_sec: int = 20):
 
 
 def get_running_job_ids(jobs: list) -> List[str]:
-    if len(jobs) > 0:
-        running_job_ids = [job for job in jobs if job["status"] == "RUNNING"]
-        return running_job_ids
-    else:
-        return []
+    return [job for job in jobs if job["status"] == "RUNNING"]
 
 
 def abort_jobs(sess, job_ids):
