@@ -30,18 +30,19 @@ def get_slice(buf, start: int, length: int):
 
 
 class Header:
+
     def __init__(self, marker, num1, num2):
         self.marker = marker
-        self.checksum = 0
-        self.seq = 0
-        self.size = 0
         if marker == MARKER_DATA:
             self.seq = num1
             self.size = num2
+            self.checksum = 0
         elif marker == MARKER_END:
             if num1 != 0:
                 raise ValueError(f"num1 must be 0 for checksum but got {num1}")
             self.checksum = num2
+            self.seq = 0
+            self.size = 0
         else:
             raise ValueError(f"invalid chunk marker {marker}")
 
@@ -60,7 +61,7 @@ class Header:
             raise ValueError("Prefix too short")
 
         marker, num1, num2 = HEADER_STRUCT.unpack_from(buffer, 0)
-        return Header(marker, num1, num2)
+        return cls(marker, num1, num2)
 
     def to_bytes(self):
         if self.marker == MARKER_DATA:
