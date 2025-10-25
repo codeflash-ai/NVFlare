@@ -35,25 +35,22 @@ class ComponentBuilder:
         pass
 
     def is_class_config(self, config_dict: dict) -> bool:
-        def has_valid_class_path():
-            try:
-                _ = self.get_class_path(config_dict)
-                # we have valid class path
-                return True
-            except ConfigError:
-                # this is not a valid class path
-                return False
-
         # use config_type to distinguish between components and regular dictionaries
         config_type = config_dict.get("config_type", ConfigType.COMPONENT)
         if config_type != ConfigType.COMPONENT:
             return False
 
-        # regardless it has args or not. if path/name and valid class path, very likely we have
-        # class config.
-        if ("path" in config_dict or "name" in config_dict) and has_valid_class_path():
+        # Fast path: reject early if neither "path" nor "name" present
+        if "path" not in config_dict and "name" not in config_dict:
+            return False
+
+        # Inline has_valid_class_path function logic to reduce call overhead
+        try:
+            _ = self.get_class_path(config_dict)
+            # we have valid class path
             return True
-        else:
+        except ConfigError:
+            # this is not a valid class path
             return False
 
     def build_component(self, config_dict):
