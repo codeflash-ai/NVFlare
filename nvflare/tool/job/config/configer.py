@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -56,9 +58,8 @@ def extract_string_with_index(input_string):
 
     """
 
-    result = []
     if not input_string.strip(" "):
-        return result
+        return []
 
     opening_bracket_index = input_string.find("[")
     closing_bracket_index = input_string.find("]")
@@ -68,16 +69,12 @@ def extract_string_with_index(input_string):
         string_after = input_string[closing_bracket_index + 1 :].strip(". ")
         if string_after:
             r = (string_before.strip("."), index, extract_string_with_index(string_after.strip(".")))
-            if r:
-                result.append(r)
+            return [r]
         else:
             r = (string_before.strip("."), index, string_after)
-            result.append(r)
+            return [r]
     else:
-        result.append(input_string)
-
-    result = [elm for elm in result if len(elm) > 0]
-    return result
+        return [input_string]
 
 
 def filter_indices(app_indices_configs: Dict[str, Dict[str, Tuple]]) -> Dict[str, Dict[str, Dict[str, KeyIndex]]]:
@@ -308,10 +305,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
