@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -308,10 +310,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
@@ -340,41 +339,65 @@ def _parse_cli_config(
         A dictionary containing the configurations extracted from the command-line arguments.
     """
 
-    app_cli_config_dict = {}
+    app_cli_config_dict: Dict[str, Dict[str, Dict[str, str]]] = {}
+    # Hot path: minimize attribute lookups and intermediate list/dict creations
+    # profile: the key bottleneck is calling get_app_name_from_path and get_config_file_path (external IO)
+    # Inline the config parsing logic for loop to reduce Python overhead
+
     if cli_configs:
+        # Bind frequently used globals to local variables for tight loop performance
+        DEFAULT_NAME = DEFAULT_APP_NAME
+        META_NAME = META_APP_NAME
+        get_app_name = get_app_name_from_path
+        get_config_file = get_config_file_path
+        APP_NAMES_SET = set(app_names)
+
         for arr in cli_configs:
-
-            app_name = get_app_name_from_path(arr[0])
-            config_file = get_config_file_path(app_name, arr[0], job_folder)
-
+            arr0 = arr[0]
+            app_name = get_app_name(arr0)
+            config_file = get_config_file(app_name, arr0, job_folder)
             config_data = arr[1:]
-            config_dict = {}
-            app_name = DEFAULT_APP_NAME if not app_name else app_name
+            config_dict: Dict[str, str] = {}
 
-            if app_name not in app_names and app_name != DEFAULT_APP_NAME and app_name != META_APP_NAME:
+            # Guarantee non-empty, fast path for name rebind
+            app_name_final = DEFAULT_NAME if not app_name else app_name
+
+            if (app_name_final not in APP_NAMES_SET and
+                app_name_final != DEFAULT_NAME and
+                app_name_final != META_NAME):
                 raise ValueError(
                     f"Please specify one of the app names {app_names}. For example '<app_name>/xxx.conf k1=v1 k2=v2...'"
                 )
 
+            # Optimize config_data parsing for minimal string ops:
+            # We batch process with local scan instead of string methods inside loop,
+            # But sticking with string methods for behavioral parity and clarity.
+
             for conf in config_data:
+                # Fast path: most confs do NOT end with "-", use find("=") directly
                 if conf.endswith("-"):
                     conf_key = conf[:-1]
                     conf_value = None
                 else:
+                    # Split key-value pair only once
                     index = conf.find("=")
                     if index == -1:
                         raise ValueError("Invalid config data, expecting key, value pair in the format key=value")
-                    conf_key = conf[0:index]
-                    conf_value = conf[index + 1 :]
+                    conf_key = conf[:index]
+                    conf_value = conf[index + 1:]
+                    # Handle exception for conf_key ending with "-" after "=" split
                     if conf_key.endswith("-"):
                         conf_key = conf_key[:-1]
                         conf_value = None
 
                 config_dict[conf_key] = conf_value
 
-            if app_name not in app_cli_config_dict:
-                app_cli_config_dict[app_name] = {}
-            app_cli_config_dict[app_name][config_file] = config_dict
+            app_name_dict = app_cli_config_dict.get(app_name_final)
+            if app_name_dict is None:
+                # Insert new dict only if key not present
+                app_cli_config_dict[app_name_final] = {config_file: config_dict}
+            else:
+                app_name_dict[config_file] = config_dict
 
     return app_cli_config_dict
 
