@@ -17,10 +17,14 @@ from nvflare.apis.fl_constant import ConnectionSecurity
 from nvflare.fuel.f3.comm_config import CommConfigurator
 from nvflare.fuel.f3.drivers.driver_params import DriverParams
 
+_configurator_instance = None
+
 
 def use_aio_grpc():
-    configurator = CommConfigurator()
-    return configurator.use_aio_grpc(default=None)
+    global _configurator_instance
+    if _configurator_instance is None:
+        _configurator_instance = CommConfigurator()
+    return _configurator_instance.use_aio_grpc(default=None)
 
 
 def get_grpc_client_credentials(params: dict):
