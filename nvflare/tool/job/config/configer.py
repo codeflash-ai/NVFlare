@@ -31,6 +31,8 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -114,6 +116,31 @@ def _cast_type(key_index, cli_value):
     if key_index.value is None:
         return cli_value
 
+    # Optimization: Avoid string formatting and ConfigFactory when possible
+    # Attempt fast numeric/boolean conversion only if current type is int, float, bool.
+    value_type = type(key_index.value)
+    if value_type is int:
+        try:
+            return int(cli_value)
+        except Exception:
+            pass
+    elif value_type is float:
+        try:
+            return float(cli_value)
+        except Exception:
+            pass
+    elif value_type is bool:
+        try:
+            # pyhocon default for bool: True/False, case-insensitive. Accept also '1'/'0'
+            lowval = str(cli_value).lower()
+            if lowval in ("true", "1"):
+                return True
+            elif lowval in ("false", "0"):
+                return False
+        except Exception:
+            pass
+
+    # Fallback: use ConfigFactory
     new_value = ConfigFactory.parse_string(f"{key_index.key}={cli_value}")[key_index.key]
     return new_value
 
@@ -148,15 +175,18 @@ def convert_to_number(value: str):
     if not value:
         return value
 
-    try:
-        if value.isdigit():
-            return int(value)
-        elif value.replace(".", "").isdigit():
-            return float(value)
-        else:
-            return value
-    except Exception:
-        return value
+    # Shortcut: only process clearly numeric strings, don't call replace every time
+    if value.isdigit():
+        return int(value)
+    # Check for 'simple' float: one dot, rest digits
+    if value.count('.') == 1:
+        left, right = value.split('.', 1)
+        if left.isdigit() and right.isdigit():
+            try:
+                return float(value)
+            except Exception:
+                return value
+    return value
 
 
 def get_last_token(input_string):
@@ -219,14 +249,14 @@ def merge_configs(
             Each of the merged configurations can be expressed in a Tuple: config, excluded_key_List, key_indices
     """
     app_merged = {}
-    for app_name in app_indices_configs:
-        indices_configs = app_indices_configs[app_name]
-        cli_file_configs = app_cli_file_configs.get(app_name, None)
+
+    for app_name, indices_configs in app_indices_configs.items():
+        cli_file_configs = app_cli_file_configs.get(app_name)
         if cli_file_configs:
             merged = {}
             for file, (config, excluded_key_list, key_indices) in indices_configs.items():
-                if len(key_indices) > 0:
-                    cli_configs = cli_file_configs.get(file, None)
+                if key_indices:
+                    cli_configs = cli_file_configs.get(file)
                     if cli_configs:
                         for key, cli_value in cli_configs.items():
                             cli_value = convert_to_number(cli_value)
@@ -251,10 +281,8 @@ def merge_configs(
                 merged[file] = (config, excluded_key_list, key_indices)
             app_merged[app_name] = merged
         elif app_name == META_APP_NAME:
-            new_indices_configs = {}
-            for k, v in indices_configs.items():
-                new_indices_configs[k] = v
-            app_merged[app_name] = new_indices_configs
+            # No need to copy, just assign
+            app_merged[app_name] = indices_configs
         else:
             app_merged[app_name] = indices_configs
 
@@ -308,10 +336,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
