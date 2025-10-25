@@ -77,9 +77,21 @@ class DFStatisticsCore(Statistics, ABC):
 
         df = self.data[dataset_name]
         feature: Series = df[feature_name]
-        flattened = feature.ravel()
-        flattened = flattened[flattened != np.array(None)]
-        buckets = get_std_histogram_buckets(flattened, num_of_bins, BinRange(global_min_value, global_max_value))
+
+        # Efficiently flatten and remove None/NaN
+        flattened = np.asarray(feature.values).ravel()
+        # Use mask to avoid creation of temporary arrays for None removal
+        if flattened.dtype == np.object_:
+            # For object dtypes, need to filter both None and np.nan
+            mask = np.array([(x is not None and not (isinstance(x, float) and np.isnan(x))) for x in flattened])
+            filtered_flattened = flattened[mask]
+        else:
+            # For numeric types, np.isnan works efficiently
+            filtered_flattened = flattened[~np.isnan(flattened)]
+
+        buckets = get_std_histogram_buckets(
+            filtered_flattened, num_of_bins, BinRange(global_min_value, global_max_value)
+        )
         return Histogram(HistogramType.STANDARD, buckets)
 
     def max_value(self, dataset_name: str, feature_name: str) -> float:

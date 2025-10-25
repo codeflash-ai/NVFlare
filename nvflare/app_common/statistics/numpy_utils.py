@@ -43,8 +43,9 @@ def dtype_to_data_type(dtype) -> DataType:
 
 
 def get_std_histogram_buckets(nums: np.ndarray, num_bins: int = 10, br: Optional[BinRange] = None):
-    num_posinf = len(nums[np.isposinf(nums)])
-    num_neginf = len(nums[np.isneginf(nums)])
+    # More memory-efficient inf counting
+    num_posinf = np.count_nonzero(np.isposinf(nums))
+    num_neginf = np.count_nonzero(np.isneginf(nums))
     if br:
         counts, buckets = np.histogram(nums, bins=num_bins, range=(br.min_value, br.max_value))
     else:
