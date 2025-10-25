@@ -217,11 +217,14 @@ class JobMetaValidator(JobMetaValidatorSpec):
 
     @staticmethod
     def _get_all_clients(site_list: Optional[list]) -> Set[str]:
-
+        # Optimization: use set difference for faster site filtering when ALL_SITES is not present.
+        # Preserves behavior, return type, and side effects.
         if site_list[0] == ALL_SITES:
             return {ALL_SITES}
-
-        return set([site for site in site_list if site != SERVER_SITE_NAME])
+        site_set = set(site_list)
+        if SERVER_SITE_NAME in site_set:
+            site_set.discard(SERVER_SITE_NAME)
+        return site_set
 
     @staticmethod
     def _entry_exists(zip_file: ZipFile, path: str) -> bool:
