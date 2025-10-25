@@ -165,8 +165,7 @@ class JobMetaValidator(JobMetaValidatorSpec):
             return v
         else:
             try:
-                v = int(v)
-                return v
+                return int(v)
             except ValueError as e:
                 raise ValueError(f"invalid data type for {v},can't not convert to Int", secure_format_exception(e))
             except TypeError as e:
