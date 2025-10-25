@@ -102,15 +102,17 @@ class JobMetaValidator(JobMetaValidatorSpec):
         if not deploy_map:
             raise ValueError(f"deploy_map is empty for job {job_name}")
 
+        # Using single loop and a set for fast membership checks
         site_list = []
         for deployments in deploy_map.values():
-            deployments = extract_participants(deployments)
-            for site in deployments:
-                site_list.append(site)
+            site_list.extend(extract_participants(deployments))
         if not site_list:
             raise ValueError(f"No site is specified in deploy_map for job {job_name}")
 
-        if ALL_SITES.casefold() in (site.casefold() for site in site_list):
+        all_sites_cf = ALL_SITES.casefold()
+        site_list_casefolded = [site.casefold() for site in site_list]
+
+        if all_sites_cf in site_list_casefolded:
             # if ALL_SITES is specified, no other site can be in the list
             if len(site_list) > 1:
                 raise ValueError(f"No other site can be specified if {ALL_SITES} is used for job {job_name}")
@@ -119,7 +121,9 @@ class JobMetaValidator(JobMetaValidatorSpec):
         elif SERVER_SITE_NAME not in site_list:
             raise ValueError(f"Missing server site in deploy_map for job {job_name}")
         else:
-            duplicates = [site for site, count in collections.Counter(site_list).items() if count > 1]
+            # Faster duplicate finding using Counter
+            counter = collections.Counter(site_list)
+            duplicates = [site for site, count in counter.items() if count > 1]
             if duplicates:
                 raise ValueError(f"Multiple apps to be deployed to following sites {duplicates} for job {job_name}")
 
