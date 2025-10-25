@@ -31,6 +31,10 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_APP_CONFIG_PATHS_CACHE = {}
+
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -308,10 +312,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
@@ -396,12 +397,20 @@ def get_config_file_path(app_name, input_file_path, job_folder):
         dirname = os.path.dirname(input_file_path)
         if dirname == "":
             # no dirname
-            config_file = os.path.abspath(os.path.join(job_folder, DEFAULT_APP_NAME, "config", basename))
+            cache_key = (job_folder, DEFAULT_APP_NAME, basename)
+            config_file = _APP_CONFIG_PATHS_CACHE.get(cache_key)
+            if config_file is None:
+                config_file = os.path.abspath(os.path.join(job_folder, DEFAULT_APP_NAME, "config", basename))
+                _APP_CONFIG_PATHS_CACHE[cache_key] = config_file
         else:
             index = dirname.find("/")
             if index == -1:
                 # no directory name, only app name
-                config_file = os.path.abspath(os.path.join(job_folder, app_name, "config", basename))
+                cache_key = (job_folder, app_name, basename)
+                config_file = _APP_CONFIG_PATHS_CACHE.get(cache_key)
+                if config_file is None:
+                    config_file = os.path.abspath(os.path.join(job_folder, app_name, "config", basename))
+                    _APP_CONFIG_PATHS_CACHE[cache_key] = config_file
             else:
                 # full path
                 config_file = os.path.abspath(os.path.join(job_folder, input_file_path))
