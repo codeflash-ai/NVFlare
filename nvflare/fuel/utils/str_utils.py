@@ -13,6 +13,12 @@
 # limitations under the License.
 
 
+_REPLACE_TABLES = {}
+
+
 def replace_chars(s: str, replace_char: str = "_"):
-    translation_table = str.maketrans({":": replace_char, " ": replace_char, ".": replace_char})
+    translation_table = _REPLACE_TABLES.get(replace_char)
+    if translation_table is None:
+        translation_table = str.maketrans({":": replace_char, " ": replace_char, ".": replace_char})
+        _REPLACE_TABLES[replace_char] = translation_table
     return s.translate(translation_table)
