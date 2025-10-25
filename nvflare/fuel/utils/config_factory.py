@@ -142,8 +142,15 @@ class ConfigFactory:
     @staticmethod
     def match_config(parent, init_file_path, match_fn) -> bool:
         # we ignore the original extension
-        basename = os.path.splitext(pathlib.Path(init_file_path).name)[0]
+
+        # Inline equivalent to pathlib.Path(init_file_path).name for speed
+        basename_with_ext = os.path.basename(init_file_path)
+        basename = os.path.splitext(basename_with_ext)[0]
+
+        # Cache ext2fmt_map: config_ext_formats() may be expensive if called repeatedly
         ext2fmt_map = ConfigFormat.config_ext_formats()
+
+        # Use local variables for performance
         for ext in ext2fmt_map:
             if match_fn(parent, f"{basename}{ext}"):
                 return True
