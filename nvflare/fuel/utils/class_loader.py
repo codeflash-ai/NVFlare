@@ -13,6 +13,7 @@
 # limitations under the License.
 import builtins
 import importlib
+from functools import lru_cache
 from typing import Type
 
 
@@ -33,6 +34,7 @@ def get_class_name(cls: Type) -> str:
     return module + "." + cls.__qualname__
 
 
+@lru_cache(maxsize=128)
 def load_class(class_path):
     """Load class from fully qualified class name
 
