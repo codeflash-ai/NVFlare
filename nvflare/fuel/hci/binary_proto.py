@@ -425,9 +425,10 @@ class GenerateDataFromFile(DataGenerator):
     """
 
     def __init__(self, file_name: str):
-        file_stats = os.stat(file_name)
-        self.size = file_stats.st_size
-        self.file = open(file_name, "rb")
+        self.size = os.stat(file_name).st_size
+        # Use buffering=0 for direct IO as we're reading large chunks (max MAX_BLOCK_SIZE)
+        # This avoids double buffering at Python level for better performance.
+        self.file = open(file_name, "rb", buffering=0)
 
     def data_size(self) -> int:
         return self.size
