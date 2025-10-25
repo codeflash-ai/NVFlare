@@ -359,7 +359,9 @@ def git_pieces_from_vcs(tag_prefix, root, verbose, runner=run_command):
 
 def plus_or_dot(pieces):
     """Return a + if we don't already have one, else return a ."""
-    if "+" in pieces.get("closest-tag", ""):
+    # Optimize by storing the result of get, since it's accessed twice in the slow path
+    tag = pieces.get("closest-tag", "")
+    if "+" in tag:
         return "."
     return "+"
 
@@ -373,17 +375,25 @@ def render_pep440(pieces):
     Exceptions:
     1: no tags. git_describe was just HEX. 0+untagged.DISTANCE.gHEX[.dirty]
     """
-    if pieces["closest-tag"]:
-        rendered = pieces["closest-tag"]
-        if pieces["distance"] or pieces["dirty"]:
-            rendered += plus_or_dot(pieces)
-            rendered += "%d.g%s" % (pieces["distance"], pieces["short"])
-            if pieces["dirty"]:
-                rendered += ".dirty"
+    closest_tag = pieces["closest-tag"]
+    distance = pieces["distance"]
+    dirty = pieces["dirty"]
+    short = pieces["short"]
+    # Fast path: tagged
+    if closest_tag:
+        rendered = closest_tag
+        if distance or dirty:
+            # Inline +dirty handling to minimize string allocations
+            s = f"{plus_or_dot(pieces)}{distance}.g{short}"
+            if dirty:
+                # Avoid intermediate string allocation in main flow
+                rendered = f"{rendered}{s}.dirty"
+            else:
+                rendered = f"{rendered}{s}"
     else:
-        # exception #1
-        rendered = "0+untagged.%d.g%s" % (pieces["distance"], pieces["short"])
-        if pieces["dirty"]:
+        # Exception #1: no tags
+        rendered = f"0+untagged.{distance}.g{short}"
+        if dirty:
             rendered += ".dirty"
     return rendered
 
