@@ -62,7 +62,8 @@ class BaseContext(SimpleContext):
 
     def get_prop(self, key, default=None):
         with self._update_lock:
-            return SimpleContext.get_prop(self, key, default)
+            # direct dict access for faster lookup
+            return self.props.get(key, default)
 
     def clear_props(self):
         with self._update_lock:
