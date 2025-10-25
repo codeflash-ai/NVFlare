@@ -160,7 +160,9 @@ class CommandRegister(object):
         return scope
 
     def get_command_entries(self, cmd_name: str):
-        return self.cmd_map.get(cmd_name, [])
+        if cmd_name in self.cmd_map:
+            return self.cmd_map[cmd_name]
+        return []
 
     def register_module_spec(self, module_spec: CommandModuleSpec, include_invisible=True):
         for cmd_spec in module_spec.cmd_specs:
