@@ -49,12 +49,8 @@ def parse_var(s):
 
     Returns: Tuple of key and value
     """
-    items = s.split("=")
-    key = items[0].strip()  # we remove blanks around keys, as is logical
-    value = ""
-    if len(items) > 1:
-        # rejoin the rest:
-        value = "=".join(items[1:])
+    key, _, value = s.partition("=")
+    key = key.strip()  # we remove blanks around keys, as is logical
     return key, value
 
 
