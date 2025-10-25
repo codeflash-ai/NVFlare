@@ -153,10 +153,10 @@ class CommandRegister(object):
         self.mapped_cmds = []
 
     def _get_scope(self, name: str):
-        scope = self.scopes.get(name, None)
-        if scope is None:
-            scope = _Scope(name)
-            self.scopes[name] = scope
+        if name in self.scopes:
+            return self.scopes[name]
+        scope = _Scope(name)
+        self.scopes[name] = scope
         return scope
 
     def get_command_entries(self, cmd_name: str):
