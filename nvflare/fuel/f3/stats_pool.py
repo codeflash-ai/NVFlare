@@ -450,8 +450,7 @@ class StatsPoolManager:
 
     @classmethod
     def get_pool(cls, name: str):
-        name = name.lower()
-        return cls.pools.get(name)
+        return cls.pools.get(name.lower())
 
     @classmethod
     def delete_pool(cls, name: str):
