@@ -127,7 +127,10 @@ def secure_format_exception(e: Exception) -> str:
     Returns:
         A formatted exception string.
     """
-    if is_secure():
+    if not hasattr(secure_format_exception, "_secure_mode"):
+        secure_format_exception._secure_mode = is_secure()
+
+    if secure_format_exception._secure_mode:
         return str(type(e))
     else:
         return f"{type(e).__name__}: {str(e)}"
