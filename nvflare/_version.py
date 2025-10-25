@@ -397,22 +397,30 @@ def render_pep440_branch(pieces):
     Exceptions:
     1: no tags. 0[.dev0]+untagged.DISTANCE.gHEX[.dirty]
     """
-    if pieces["closest-tag"]:
-        rendered = pieces["closest-tag"]
-        if pieces["distance"] or pieces["dirty"]:
-            if pieces["branch"] != "master":
+    # Cache frequently accessed values for speed
+    closest_tag = pieces["closest-tag"]
+    distance = pieces["distance"]
+    dirty = pieces["dirty"]
+    branch = pieces["branch"]
+    short = pieces["short"]
+
+    if closest_tag:
+        # Only perform concatenation logic if needed
+        rendered = closest_tag
+        if distance or dirty:
+            if branch != "master":
                 rendered += ".dev0"
-            rendered += plus_or_dot(pieces)
-            rendered += "%d.g%s" % (pieces["distance"], pieces["short"])
-            if pieces["dirty"]:
+            rendered += "+" if "+" not in closest_tag else "."
+            rendered += f"{distance}.g{short}"
+            if dirty:
                 rendered += ".dirty"
     else:
         # exception #1
         rendered = "0"
-        if pieces["branch"] != "master":
+        if branch != "master":
             rendered += ".dev0"
-        rendered += "+untagged.%d.g%s" % (pieces["distance"], pieces["short"])
-        if pieces["dirty"]:
+        rendered += f"+untagged.{distance}.g{short}"
+        if dirty:
             rendered += ".dirty"
     return rendered
 
