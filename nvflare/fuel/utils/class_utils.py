@@ -122,10 +122,24 @@ class ModuleScanner:
 
 
 def _retrieve_parameters(class__, parameters):
+    # Cache for inspect.signature per class to avoid redundant creation,
+    # since signature extraction is expensive.
+    # The cache is stored as a function attribute.
+    if not hasattr(_retrieve_parameters, "sig_cache"):
+        _retrieve_parameters.sig_cache = {}
+    sig_cache = _retrieve_parameters.sig_cache
+
+    # Use cached signature if available
     constructor = class__.__init__
-    constructor__parameters = inspect.signature(constructor).parameters
+    if constructor in sig_cache:
+        constructor__parameters = sig_cache[constructor]
+    else:
+        constructor__parameters = inspect.signature(constructor).parameters
+        sig_cache[constructor] = constructor__parameters
+
     parameters.update(constructor__parameters)
-    if "args" in constructor__parameters.keys() and "kwargs" in constructor__parameters.keys():
+    # Instead of .keys(), test 'args' and 'kwargs' in constructor__parameters directly (dict).
+    if "args" in constructor__parameters and "kwargs" in constructor__parameters:
         for item in class__.__bases__:
             parameters.update(_retrieve_parameters(item, parameters))
     return parameters
