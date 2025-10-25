@@ -27,11 +27,11 @@ def str2bool(value, raise_exc=False):
         value = value.lower()
         if value in _true_set:
             return True
-        if value in _false_set:
+        elif value in _false_set:
             return False
 
-    if isinstance(value, int):
-        return value != 0
+    elif isinstance(value, int):
+        return bool(value)
 
     if raise_exc:
         raise ValueError('Expected "%s"' % '", "'.join(_true_set | _false_set))
