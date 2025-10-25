@@ -463,19 +463,23 @@ class StatsPoolManager:
     def get_table(cls):
         with cls.lock:
             headers = ["pool", "type", "description"]
-            rows = []
-            for k in sorted(cls.pools.keys()):
-                v = cls.pools[k]
-                r = [v.name]
+            # Read and sort keys only once, reuse
+            pool_keys_sorted = sorted(cls.pools.keys())
+            pools = cls.pools  # local var for attribute lookup reduction
+            rows_append = [].append  # method caching so .append is a local var
+            for k in pool_keys_sorted:
+                v = pools[k]
+                # Build up row directly to avoid temp list/article creation
                 if isinstance(v, HistPool):
                     t = "hist"
                 elif isinstance(v, CounterPool):
                     t = "counter"
                 else:
                     t = "?"
-                r.append(t)
-                r.append(v.description)
-                rows.append(r)
+                # List literaling avoids intermediate allocation of [v.name]; use tuple and list() for slightly better perf
+                rows_append([v.name, t, v.description])
+            # Rehydrate rows from local append list:
+            rows = rows_append.__self__
             return headers, rows
 
     @classmethod
