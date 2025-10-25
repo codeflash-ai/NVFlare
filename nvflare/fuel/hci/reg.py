@@ -114,7 +114,8 @@ class CommandEntry(object):
         self.client_cmd = client_cmd
 
     def full_command_name(self) -> str:
-        return "{}.{}".format(self.scope.name, self.name)
+        # Use f-string for improved performance over str.format
+        return f"{self.scope.name}.{self.name}"
 
 
 class _Scope(object):
