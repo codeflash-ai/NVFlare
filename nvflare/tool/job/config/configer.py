@@ -31,6 +31,22 @@ from nvflare.tool.job.job_client_const import (
     META_APP_NAME,
 )
 
+_OS_PATH_BASENAME = os.path.basename
+
+_OS_PATH_ABS = os.path.abspath
+
+_OS_PATH_JOIN = os.path.join
+
+_OS_PATH_DIRNAME = os.path.dirname
+
+_OS_PATH_ISABS = os.path.isabs
+
+_OS_PATH_SEP = os.path.sep
+
+_JOB_META_BASE_NAME_DOT = f"{JOB_META_BASE_NAME}."
+
+_META_FILENAMES = {f"{JOB_META_BASE_NAME}{ext}" for ext in ConfigFormat.extensions()}
+
 
 def merge_configs_from_cli(cmd_args, app_names: List[str]) -> Tuple[Dict[str, Dict[str, tuple]], bool]:
     app_indices: Dict[str, Dict[str, Tuple]] = build_config_file_indices(cmd_args.job_folder, app_names)
@@ -308,10 +324,7 @@ def get_cli_config(cmd_args: Any, app_names: List[str]) -> Dict[str, Dict[str, D
 
 
 def _is_meta_file(filename: str) -> bool:
-    for postfix in ConfigFormat.extensions():
-        if filename == f"{JOB_META_BASE_NAME}{postfix}":
-            return True
-    return False
+    return filename in _META_FILENAMES
 
 
 def _parse_cli_config(
@@ -364,7 +377,7 @@ def _parse_cli_config(
                     index = conf.find("=")
                     if index == -1:
                         raise ValueError("Invalid config data, expecting key, value pair in the format key=value")
-                    conf_key = conf[0:index]
+                    conf_key = conf[:index]
                     conf_value = conf[index + 1 :]
                     if conf_key.endswith("-"):
                         conf_key = conf_key[:-1]
@@ -380,32 +393,32 @@ def _parse_cli_config(
 
 
 def get_config_file_path(app_name, input_file_path, job_folder):
-    basename = os.path.basename(input_file_path)
-    if basename.startswith(f"{JOB_META_BASE_NAME}."):
-        config_file = os.path.abspath(os.path.join(job_folder, basename))
-    else:
-        # The input_file_path could be in one of the following format
-        # <config_file_name>  --> missing "app/config"
-        # <app_name>/<config_file_name> -- missing "config" directory
-        # <app_name>/config/<config_file_name> -- including "config" directory
-        # <app_name>/custom/<config_file_name> -- including "config" directory
-        # We need to handle all cases
-        if input_file_path.strip().startswith("/"):
-            raise ValueError(f"invalid config_file, {input_file_path}")
+    _basename = _OS_PATH_BASENAME(input_file_path)
+    if _basename.startswith(_JOB_META_BASE_NAME_DOT):
+        return _OS_PATH_ABS(_OS_PATH_JOIN(job_folder, _basename))
 
-        dirname = os.path.dirname(input_file_path)
-        if dirname == "":
-            # no dirname
-            config_file = os.path.abspath(os.path.join(job_folder, DEFAULT_APP_NAME, "config", basename))
+    # The input_file_path could be:
+    # <config_file_name>  --> missing "app/config"
+    # <app_name>/<config_file_name> -- missing "config" directory
+    # <app_name>/config/<config_file_name> -- including "config" directory
+    # <app_name>/custom/<config_file_name> -- including "config" directory
+    # We need to handle all cases
+    if input_file_path.strip().startswith("/"):
+        raise ValueError(f"invalid config_file, {input_file_path}")
+
+    # Avoid repeated work by using local vars for function lookups
+    _dirname = _OS_PATH_DIRNAME(input_file_path)
+    if _dirname == "":
+        # no dirname
+        return _OS_PATH_ABS(_OS_PATH_JOIN(job_folder, DEFAULT_APP_NAME, "config", _basename))
+    else:
+        index = _dirname.find(_OS_PATH_SEP)
+        if index == -1:
+            # no directory name, only app name
+            return _OS_PATH_ABS(_OS_PATH_JOIN(job_folder, app_name, "config", _basename))
         else:
-            index = dirname.find("/")
-            if index == -1:
-                # no directory name, only app name
-                config_file = os.path.abspath(os.path.join(job_folder, app_name, "config", basename))
-            else:
-                # full path
-                config_file = os.path.abspath(os.path.join(job_folder, input_file_path))
-    return config_file
+            # full path
+            return _OS_PATH_ABS(_OS_PATH_JOIN(job_folder, input_file_path))
 
 
 def build_config_file_indices(job_folder: str, app_names: List[str]) -> Dict[str, Dict[str, Tuple]]:
@@ -459,11 +472,11 @@ def get_app_name_from_path(path: str):
     # path app1/xxx.conf
     # path app1/config/xxx.conf
     # path app1/custom/xxx.conf
-    if _is_meta_file(os.path.basename(path)):
+    if _is_meta_file(_OS_PATH_BASENAME(path)):
         return META_APP_NAME
-    if os.path.isabs(path):
+    if _OS_PATH_ISABS(path):
         raise ValueError(f"Expecting <config file> or <app_name>/xxx/<config file>, but '{path}' is given.")
-    segs = path.split(os.path.sep)
+    segs = path.split(_OS_PATH_SEP)
     if len(segs) == 1:
         return DEFAULT_APP_NAME
     else:
