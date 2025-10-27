@@ -17,9 +17,9 @@ from typing import Optional
 
 
 def get_ext_format(ext: str) -> str:
-    if ext is None or ext == "" or ext.isspace():
+    if not ext or ext.isspace():
         return "csv"
-    elif ext.startswith("."):
+    elif ext[0] == ".":
         return ext[1:]
     else:
         return ext
