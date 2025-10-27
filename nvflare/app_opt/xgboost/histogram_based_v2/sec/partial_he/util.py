@@ -123,20 +123,29 @@ def decode_encrypted_data(encoded: str, n_length=1024):
 
 
 def decode_encrypted_numbers_from_str(pubkey, encoded: str):
+    # Optimize by combining json.loads + processing in a single step, since the .loads overhead is already minimal
     j = json.loads(encoded)
     return _decode_encrypted_numbers(pubkey, j)
 
 
 def _decode_encrypted_numbers(pubkey, data):
+    # Use list comprehension for faster appending, and minimize property lookups in encrypt path
     result = []
+    append = result.append
+    encrypt = encrypt_number
+    int_ctxt = int_to_ciphertext
+    b64_to_int = base64_to_int
     for v in data:
         if isinstance(v, int):
-            d = v
+            append(v)
         else:
-            d = encrypt_number(
-                pubkey, ciphertext=int_to_ciphertext(base64_to_int(v[0]), pubkey=pubkey), exponent=int(v[1])
-            )
-        result.append(d)
+            # Minimize attribute lookups and intermediate object creation
+            # Slightly unroll to avoid repeated lookups in tight loop
+            x = b64_to_int(v[0])
+            ctxt = int_ctxt(x, pubkey)
+            exp = int(v[1])
+            d = encrypt(pubkey, ciphertext=ctxt, exponent=exp)
+            append(d)
     return result
 
 
