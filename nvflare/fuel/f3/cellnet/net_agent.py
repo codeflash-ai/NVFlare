@@ -788,15 +788,26 @@ class NetAgent:
     def _do_bulk_test(self, request: Message) -> Union[None, Message]:
         size = request.payload
         assert isinstance(size, int)
-        nums = []
-        for _ in range(size):
-            num = random.randint(0, 100)
-            nums.append(num)
-            msg = Message(payload=num)
-            self.cell.queue_message(
-                channel=_CHANNEL,
-                topic=_TOPIC_BULK_ITEM,
-                targets=FQCN.ROOT_SERVER,
+        # Use local variable for queue_message to avoid repeated attribute lookup in the hot loop.
+        queue_message = self.cell.queue_message
+        # Use random.choices for batch random int selection for better performance.
+        nums = random.choices(range(101), k=size)
+        # Eliminate per-iteration attribute lookups and starve the tight loop.
+        # Precompute arguments that remain constant.
+        channel = _CHANNEL
+        topic = _TOPIC_BULK_ITEM
+        targets = FQCN.ROOT_SERVER
+        # Use local Message constructor ref
+        MsgClass = Message
+
+        # Construct and queue all messages using optimized loop
+        # Avoid multiple appends and object creations per iteration
+        for num in nums:
+            msg = MsgClass(payload=num)
+            queue_message(
+                channel=channel,
+                topic=topic,
+                targets=targets,
                 message=msg,
             )
         return Message(payload=f"queued: {nums}")
