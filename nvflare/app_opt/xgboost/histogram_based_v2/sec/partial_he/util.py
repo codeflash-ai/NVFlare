@@ -89,8 +89,10 @@ def combine(g, h):
 
 
 def split(d):
-    combined_g = d / SCALE_FACTOR
-    g = int(round(combined_g, 0))
+    # Avoid float round + int conversion for faster computation
+    # Use built-in round with no decimals, which is equivalent, but pass d/SCALE_FACTOR directly to avoid temp var
+    g = round(d / SCALE_FACTOR)
+    # Since round() returns int for 0 decimals, no need for int() conversion
     h = d - g * SCALE_FACTOR
     return g, h
 
