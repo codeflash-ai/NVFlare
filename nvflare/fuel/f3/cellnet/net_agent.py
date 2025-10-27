@@ -417,20 +417,18 @@ class NetAgent:
     def _get_connectors(self) -> dict:
         cell = self.cell
         result = {}
+        connector_info = self._connector_info
         if cell.int_listener:
-            result["int_listener"] = self._connector_info(cell.int_listener)
+            result["int_listener"] = connector_info(cell.int_listener)
         if cell.ext_listeners:
-            listeners = [self._connector_info(x) for _, x in cell.ext_listeners.items()]
+            listeners = [connector_info(x) for x in cell.ext_listeners.values()]
             result["ext_listeners"] = listeners
         if cell.bb_ext_connector:
-            result["bb_ext_connector"] = self._connector_info(cell.bb_ext_connector)
+            result["bb_ext_connector"] = connector_info(cell.bb_ext_connector)
         if cell.bb_int_connector:
-            result["bb_int_connector"] = self._connector_info(cell.bb_int_connector)
+            result["bb_int_connector"] = connector_info(cell.bb_int_connector)
         if cell.adhoc_connectors:
-            conns = {}
-            for k, v in cell.adhoc_connectors.items():
-                conns[k] = self._connector_info(v)
-            result["adhoc_connectors"] = conns
+            result["adhoc_connectors"] = {k: connector_info(v) for k, v in cell.adhoc_connectors.items()}
         return result
 
     def _do_connectors(self, request: Message) -> Union[None, Message]:
