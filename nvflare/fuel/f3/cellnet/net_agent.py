@@ -122,130 +122,29 @@ class NetAgent:
         self.agent_closed_cb = agent_closed_cb
         self.logger = get_obj_logger(self)
 
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CELLS,
-            cb=self._do_report_cells,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_ROUTE,
-            cb=self._do_route,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_START_ROUTE,
-            cb=self._do_start_route,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STOP,
-            cb=self._do_stop,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STOP_CELL,
-            cb=self._do_stop_cell,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_PEERS,
-            cb=self._do_peers,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CONNS,
-            cb=self._do_connectors,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_URL_USE,
-            cb=self._do_url_use,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_SPEED,
-            cb=self._do_speed,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_ECHO,
-            cb=self._do_echo,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_STRESS,
-            cb=self._do_stress,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CHANGE_ROOT,
-            cb=self._do_change_root,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_BULK_TEST,
-            cb=self._do_bulk_test,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_BULK_ITEM,
-            cb=self._do_bulk_item,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_MSG_STATS,
-            cb=self._do_msg_stats,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_LIST_POOLS,
-            cb=self._do_list_pools,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_SHOW_POOL,
-            cb=self._do_show_pool,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_COMM_CONFIG,
-            cb=self._do_comm_config,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_CONFIG_VARS,
-            cb=self._do_config_vars,
-        )
-
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_PROCESS_INFO,
-            cb=self._do_process_info,
-        )
-        cell.register_request_cb(
-            channel=_CHANNEL,
-            topic=_TOPIC_HEARTBEAT,
-            cb=self._do_heartbeat,
-        )
+        # Avoid function call attribute lookups and build register tuples once
+        reg = cell.register_request_cb
+        reg(channel=_CHANNEL, topic=_TOPIC_CELLS, cb=self._do_report_cells)
+        reg(channel=_CHANNEL, topic=_TOPIC_ROUTE, cb=self._do_route)
+        reg(channel=_CHANNEL, topic=_TOPIC_START_ROUTE, cb=self._do_start_route)
+        reg(channel=_CHANNEL, topic=_TOPIC_STOP, cb=self._do_stop)
+        reg(channel=_CHANNEL, topic=_TOPIC_STOP_CELL, cb=self._do_stop_cell)
+        reg(channel=_CHANNEL, topic=_TOPIC_PEERS, cb=self._do_peers)
+        reg(channel=_CHANNEL, topic=_TOPIC_CONNS, cb=self._do_connectors)
+        reg(channel=_CHANNEL, topic=_TOPIC_URL_USE, cb=self._do_url_use)
+        reg(channel=_CHANNEL, topic=_TOPIC_SPEED, cb=self._do_speed)
+        reg(channel=_CHANNEL, topic=_TOPIC_ECHO, cb=self._do_echo)
+        reg(channel=_CHANNEL, topic=_TOPIC_STRESS, cb=self._do_stress)
+        reg(channel=_CHANNEL, topic=_TOPIC_CHANGE_ROOT, cb=self._do_change_root)
+        reg(channel=_CHANNEL, topic=_TOPIC_BULK_TEST, cb=self._do_bulk_test)
+        reg(channel=_CHANNEL, topic=_TOPIC_BULK_ITEM, cb=self._do_bulk_item)
+        reg(channel=_CHANNEL, topic=_TOPIC_MSG_STATS, cb=self._do_msg_stats)
+        reg(channel=_CHANNEL, topic=_TOPIC_LIST_POOLS, cb=self._do_list_pools)
+        reg(channel=_CHANNEL, topic=_TOPIC_SHOW_POOL, cb=self._do_show_pool)
+        reg(channel=_CHANNEL, topic=_TOPIC_COMM_CONFIG, cb=self._do_comm_config)
+        reg(channel=_CHANNEL, topic=_TOPIC_CONFIG_VARS, cb=self._do_config_vars)
+        reg(channel=_CHANNEL, topic=_TOPIC_PROCESS_INFO, cb=self._do_process_info)
+        reg(channel=_CHANNEL, topic=_TOPIC_HEARTBEAT, cb=self._do_heartbeat)
 
         self.heartbeat_thread = None
         self.monitor_thread = None
@@ -895,12 +794,14 @@ class NetAgent:
         return reply.payload
 
     def get_process_info(self, target: str):
-        reply = self.cell.send_request(
+        cell_send_request = self.cell.send_request
+        reply = cell_send_request(
             channel=_CHANNEL, topic=_TOPIC_PROCESS_INFO, request=Message(), timeout=1.0, target=target
         )
-        rc = reply.get_header(MessageHeaderKey.RETURN_CODE)
+        headers = reply.headers
+        rc = headers.get(MessageHeaderKey.RETURN_CODE)
         if rc != ReturnCode.OK:
-            err = reply.get_header(MessageHeaderKey.ERROR, "")
+            err = headers.get(MessageHeaderKey.ERROR, "")
             return f"{rc}: {err}"
         return reply.payload
 
