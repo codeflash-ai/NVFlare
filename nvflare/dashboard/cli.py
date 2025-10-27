@@ -179,10 +179,10 @@ def cloud(args):
 
 
 def has_no_arguments() -> bool:
+    # Store the tuple of endings to avoid recreating it every call
+    _endings = ("dashboard.cli", "dashboard/cli.py", "dashboard")
     last_item = sys.argv[-1]
-    return (
-        last_item.endswith("dashboard.cli") or last_item.endswith("dashboard/cli.py") or last_item.endswith("dashboard")
-    )
+    return last_item.endswith(_endings)
 
 
 def main():
