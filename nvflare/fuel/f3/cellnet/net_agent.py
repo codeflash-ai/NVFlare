@@ -761,15 +761,21 @@ class NetAgent:
         return None
 
     def start_bulk_test(self, targets: list, size: int):
-        self.cell.logger.info(f"{self.cell.get_fqcn()}: starting bulk test on {targets}")
-        msg_targets = [x for x in targets]
-        my_fqcn = self.cell.get_fqcn()
-        if my_fqcn in msg_targets:
-            msg_targets.remove(my_fqcn)
+        logger = self.cell.logger
+        get_fqcn = self.cell.get_fqcn
+
+        my_fqcn = get_fqcn()
+        # Use set for O(1) membership check, only convert to list if mutation is needed
+        msg_targets = targets
+        has_my_fqcn = (my_fqcn in targets)
+        if has_my_fqcn:
+            # Only copy if we're going to mutate
+            msg_targets = [x for x in targets if x != my_fqcn]
+        # Only log after possible mutation to show actual used targets
+        logger.info(f"{my_fqcn}: starting bulk test on {targets}")
         if not msg_targets:
             return {"error": "no targets for bulk test"}
 
-        result = {}
         replies = self.cell.broadcast_request(
             channel=_CHANNEL,
             topic=_TOPIC_BULK_TEST,
@@ -777,9 +783,14 @@ class NetAgent:
             request=Message(payload=size),
             timeout=1.0,
         )
+        result = {}
+        rc_ok = ReturnCode.OK
+        mhk_rc = MessageHeaderKey.RETURN_CODE
+        # Reduce attribute and index lookup overhead in loop
+        get_header = Message.get_header
         for t, r in replies.items():
-            rc = r.get_header(MessageHeaderKey.RETURN_CODE, ReturnCode.OK)
-            if rc != ReturnCode.OK:
+            rc = get_header(r, mhk_rc, rc_ok)
+            if rc != rc_ok:
                 result[t] = f"RC={rc}"
             else:
                 result[t] = r.payload
