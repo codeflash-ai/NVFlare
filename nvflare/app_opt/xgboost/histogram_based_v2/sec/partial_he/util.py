@@ -48,6 +48,7 @@ def ciphertext_to_int(d):
 
 
 def int_to_ciphertext(d, pubkey):
+    # BNUtils.int2BN is presumably efficient; direct call
     return ipclCipherText(pubkey.pubkey, BNUtils.int2BN(d))
 
 
@@ -75,7 +76,10 @@ def base64url_decode(payload):
 
 
 def base64_to_int(source):
-    return int(hexlify(base64url_decode(source)), 16)
+    # Faster path: avoid hexlify, it's an unnecessary conversion
+    # urlsafe_b64decode yields bytes, which can be directly parsed as int
+    # This avoids an extra allocation and conversion step
+    return int.from_bytes(base64url_decode(source), "big")
 
 
 def int_to_base64(source):
@@ -128,16 +132,19 @@ def decode_encrypted_numbers_from_str(pubkey, encoded: str):
 
 
 def _decode_encrypted_numbers(pubkey, data):
-    result = []
-    for v in data:
-        if isinstance(v, int):
-            d = v
-        else:
-            d = encrypt_number(
+    # Optimize result construction: pre-allocate list if possible for large input
+    # but here use list comprehension for speed and brevity
+    # Only branch for each v: if int, append; else, convert
+    return [
+        (
+            v
+            if isinstance(v, int)
+            else encrypt_number(
                 pubkey, ciphertext=int_to_ciphertext(base64_to_int(v[0]), pubkey=pubkey), exponent=int(v[1])
             )
-        result.append(d)
-    return result
+        )
+        for v in data
+    ]
 
 
 def encode_feature_aggregations(aggrs: list):
