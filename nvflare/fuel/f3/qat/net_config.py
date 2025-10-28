@@ -21,6 +21,9 @@ class NetConfig:
         if not self.config:
             raise RuntimeError(f"cannot load {config_file_name}")
 
+        # Cache server_config for faster repeated access in get_clients
+        self._server_config = self.config.get("server") if self.config else None
+
     def get_root_url(self):
         return self.config.get("root_url")
 
@@ -32,8 +35,9 @@ class NetConfig:
             return []
 
     def get_clients(self):
-        server_config = self.config.get("server")
+        server_config = self._server_config
         if server_config:
+            # Below is equivalent to the original, but avoids repeated lookup
             return server_config.get("clients", [])
         else:
             return []
