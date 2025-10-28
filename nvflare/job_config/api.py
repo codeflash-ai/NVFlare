@@ -69,12 +69,14 @@ class FedApp:
         return final_id
 
     def _generate_id(self, id: str = "") -> str:
-        if id not in self._used_ids:
+        used_ids = set(self._used_ids) if self._used_ids else self._used_ids
+        
+        if id not in used_ids:
             return id
         else:
-            while id in self._used_ids:
-                # increase integer counts in id
-                cnt = re.search(r"\d+", id)
+            digit_re = re.compile(r"\d+")
+            while id in used_ids:
+                cnt = digit_re.search(id)
                 if cnt:
                     cnt = cnt.group()
                     id = id.replace(cnt, str(int(cnt) + 1))
