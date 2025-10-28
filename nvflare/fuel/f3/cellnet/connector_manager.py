@@ -99,8 +99,9 @@ class ConnectorManager:
         self.logger.debug(f"adhoc scheme={self.adhoc_scheme}, resources={self.adhoc_resources}")
         self.comm_config = comm_config
 
-    def get_config_info(self):
-        return {
+        # Precompute config_info dict for faster get_config_info
+        # This is safe since all relevant attributes are initialized in __init__, and are not mutated elsewhere.
+        self._config_info = {
             "allow_adhoc": self.adhoc_allowed,
             "adhoc_scheme": self.adhoc_scheme,
             "adhoc_resources": self.adhoc_resources,
@@ -108,6 +109,9 @@ class ConnectorManager:
             "internal_resources": self.int_resources,
             "config": self.comm_config if self.comm_config else "none",
         }
+
+    def get_config_info(self):
+        return self._config_info
 
     def should_connect_to_server(self, fqcn_info: FqcnInfo) -> bool:
         if fqcn_info.gen == 1:
