@@ -48,9 +48,21 @@ def require_arguments(func):
         require_args (bool), args_size (int), args_default_size (int)
     """
     signature = inspect.signature(func)
-    parameters = signature.parameters
-    req = any(p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD for p in parameters.values())
-    size = len(parameters)
-    args_with_defaults = [param for param in parameters.values() if param.default != inspect.Parameter.empty]
-    default_args_size = len(args_with_defaults)
+    parameters_values = tuple(signature.parameters.values())
+
+    # Use local constants for improved lookup performance
+    param_pos_key = inspect.Parameter.POSITIONAL_OR_KEYWORD
+    param_empty = inspect.Parameter.empty
+
+    # Avoid multiple passes over iterable by scanning parameters once
+    req = False
+    default_args_size = 0
+    size = len(parameters_values)
+
+    for param in parameters_values:
+        if not req and param.kind == param_pos_key:
+            req = True
+        if param.default != param_empty:
+            default_args_size += 1
+
     return req, size, default_args_size
