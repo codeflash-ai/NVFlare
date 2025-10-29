@@ -112,7 +112,7 @@ class AnalyticsData:
         data = {TrackConst.TRACK_KEY: self.tag, TrackConst.TRACK_VALUE: self.value}
         if self.step is not None:
             data[TrackConst.GLOBAL_STEP_KEY] = self.step
-        if self.path:
+        if self.path is not None:
             data[TrackConst.PATH_KEY] = self.path
         if self.kwargs:
             data[TrackConst.KWARGS_KEY] = self.kwargs
