@@ -13,6 +13,8 @@
 # limitations under the License.
 import os
 
+_env_get = os.environ.get
+
 
 class EnvVar:
     WEB_ROOT = "NVFL_WEB_ROOT"
@@ -25,4 +27,4 @@ class EnvVar:
 
 
 def get_web_root():
-    return os.environ.get(EnvVar.WEB_ROOT, "/var/tmp/nvflare/dashboard")
+    return _env_get(EnvVar.WEB_ROOT, "/var/tmp/nvflare/dashboard")
