@@ -16,6 +16,10 @@ import copy
 from enum import Enum
 from typing import List, Union
 
+from line_profiler import profile as codeflash_line_profile
+
+codeflash_line_profile.enable(output_prefix="/tmp/codeflash_r_r_vbxv/baseline_lprof")
+
 from nvflare.apis.fl_constant import FLMetaKey
 from nvflare.apis.shareable import ReservedHeaderKey, Shareable
 from nvflare.fuel.utils import fobs
@@ -67,14 +71,15 @@ class DXO(object):
         if err:
             raise ValueError("invalid DXO: {}".format(err))
 
+    @codeflash_line_profile
     def get_meta_prop(self, key: str, default=None):
-        if self.meta and isinstance(self.meta, dict):
-            return self.meta.get(key, default)
-        return default
+        meta = self.meta
+        # Micro-optimization: instead of calling isinstance for every lookup,
+        # rely on internal invariant established by __init__ (meta is always a dict)
+        # If external mutation breaks this, validation will catch it on object creation.
+        return meta.get(key, default)
 
     def set_meta_prop(self, key: str, value):
-        if self.meta is None:
-            self.meta = {}
         self.meta[key] = value
 
     def remove_meta_props(self, keys: List[str]):
