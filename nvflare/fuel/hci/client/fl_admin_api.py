@@ -77,10 +77,7 @@ def default_server_status_handling_cb(reply: FLAdminAPIResponse, **kwargs) -> bo
 
 def default_client_status_handling_cb(reply: FLAdminAPIResponse) -> bool:
     client_statuses = reply.get("details").get("client_statuses")
-    stopped_client_count = 0
-    for i in range(1, len(client_statuses)):
-        if client_statuses[i][3] == "No Jobs":
-            stopped_client_count = stopped_client_count + 1
+    stopped_client_count = sum(1 for status in client_statuses[1:] if status[3] == "No Jobs")
     if stopped_client_count == len(client_statuses) - 1:
         return True
     else:
