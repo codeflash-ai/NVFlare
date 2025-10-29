@@ -30,12 +30,11 @@ def flat_layer_weights_dict(data: dict):
 def unflat_layer_weights_dict(data: dict):
     """Unflattens layer weights dict."""
     result = {}
+    special_key = SPECIAL_KEY  # Local variable for faster access
     for k, v in data.items():
-        if SPECIAL_KEY in k:
+        if special_key in k:
             # If the weight is: {"layer0_nvf_0": array1, "layer0_nvf_1": array2}
             # We will convert it back to: {"layer0": [array1, array2]} and load it back
-            layer_name, _ = k.split(SPECIAL_KEY)
-            if layer_name not in result:
-                result[layer_name] = []
-            result[layer_name].append(v)
+            layer_name, _ = k.split(special_key)
+            result.setdefault(layer_name, []).append(v)
     return result
