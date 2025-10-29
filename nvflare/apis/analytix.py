@@ -135,7 +135,7 @@ class AnalyticsData:
         if not isinstance(dxo, DXO):
             raise TypeError("expect dxo to be an instance of DXO, but got {}.".format(type(dxo)))
 
-        if len(dxo.data) == 0:
+        if not dxo.data:
             raise ValueError(
                 "dxo does not have the correct format for AnalyticsData; expected dxo.data to be length > 0, but got 0"
             )
@@ -204,25 +204,20 @@ class AnalyticsData:
     def convert_data_type(
         cls, sender_data_type: AnalyticsDataType, sender: LogWriterName, receiver: LogWriterName
     ) -> AnalyticsDataType:
-
-        if sender == LogWriterName.TORCH_TB and (receiver == LogWriterName.MLFLOW or sender == LogWriterName.WANDB):
-            if AnalyticsDataType.SCALAR == sender_data_type:
-                return AnalyticsDataType.METRIC
-            elif AnalyticsDataType.SCALARS == sender_data_type:
-                return AnalyticsDataType.METRICS
-            else:
-                return sender_data_type
-
-        if sender == LogWriterName.MLFLOW and receiver == LogWriterName.TORCH_TB:
-            if AnalyticsDataType.METRIC == sender_data_type:
-                return AnalyticsDataType.SCALAR
-            elif AnalyticsDataType.METRICS == sender_data_type:
-                return AnalyticsDataType.SCALARS
-            else:
-                return sender_data_type
-
-        if sender == LogWriterName.MLFLOW and receiver == LogWriterName.WANDB:
-            return sender_data_type
+        # Fast dispatch via dict mapping for common conversions
+        mapping = {
+            (LogWriterName.TORCH_TB, LogWriterName.MLFLOW, AnalyticsDataType.SCALAR): AnalyticsDataType.METRIC,
+            (LogWriterName.TORCH_TB, LogWriterName.MLFLOW, AnalyticsDataType.SCALARS): AnalyticsDataType.METRICS,
+            (LogWriterName.TORCH_TB, LogWriterName.WANDB, AnalyticsDataType.SCALAR): AnalyticsDataType.METRIC,
+            (LogWriterName.TORCH_TB, LogWriterName.WANDB, AnalyticsDataType.SCALARS): AnalyticsDataType.METRICS,
+            (LogWriterName.MLFLOW, LogWriterName.TORCH_TB, AnalyticsDataType.METRIC): AnalyticsDataType.SCALAR,
+            (LogWriterName.MLFLOW, LogWriterName.TORCH_TB, AnalyticsDataType.METRICS): AnalyticsDataType.SCALARS,
+        }
+        mapped = mapping.get((sender, receiver, sender_data_type))
+        if mapped is not None:
+            return mapped
+        # for MLFlow->WANDB and other unmapped, just return input
+        return sender_data_type
 
     def __str__(self) -> str:
         return f"AnalyticsData(tag: {self.tag}, value: {self.value}, data_type: {self.data_type}, kwargs: {self.kwargs}, step: {self.step})"
