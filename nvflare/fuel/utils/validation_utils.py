@@ -80,7 +80,8 @@ def check_non_negative_number(name, value):
 
 
 def check_str(name, value):
-    check_object_type(name, value, str)
+    if type(value) is not str:
+        check_object_type(name, value, str)
 
 
 def check_non_empty_str(name, value):
@@ -126,14 +127,17 @@ def _determine_candidates_value(var_name: str, candidates, base: list):
         raise ValueError(f"invalid '{var_name}': expect str or list of str but got {type(candidates)}")
 
     validated = []
+    validated_set = set()
+    base_set = set(base)
     for c in candidates:
         if not isinstance(c, str):
             raise ValueError(f"invalid value in '{var_name}': must be str but got {type(c)}")
         n = c.strip()
-        if n not in base:
+        if n not in base_set:
             raise ValueError(f"invalid value '{n}' in '{var_name}'")
-        if n not in validated:
+        if n not in validated_set:
             validated.append(n)
+            validated_set.add(n)
 
     return validated
 
