@@ -23,6 +23,8 @@ from nvflare.security.logging import secure_format_exception
 from nvflare.widgets.info_collector import InfoCollector
 from nvflare.widgets.widget import WidgetID
 
+_SHOW_ERRORS = AdminCommandNames.SHOW_ERRORS
+
 
 class CommandProcessor(object):
     """The CommandProcessor is responsible for processing a command from parent process."""
@@ -171,7 +173,7 @@ class ShowErrorsCommand(CommandProcessor):
         Returns: AdminCommandNames.SHOW_ERRORS
 
         """
-        return AdminCommandNames.SHOW_ERRORS
+        return _SHOW_ERRORS
 
     def process(self, data: Shareable, fl_ctx: FLContext):
         """Called to process the show_errors command.
