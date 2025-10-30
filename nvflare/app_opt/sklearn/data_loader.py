@@ -30,9 +30,25 @@ def _to_data_tuple(data):
 
 
 def get_pandas_reader(data_path: str):
-    from nvflare.app_common.utils.file_utils import get_file_format
+    import pathlib
 
-    file_format = get_file_format(data_path)
+    import pandas as pd
+
+    ext = pathlib.Path(data_path).suffix
+    if ext is None or ext == "" or ext.isspace():
+        file_format = "csv"
+    elif ext.startswith("."):
+        file_format = ext[1:]
+        if file_format == "" or file_format.isspace():
+            file_format = "csv"
+    else:
+        file_format = ext
+
+    pd_readers = {
+        "csv": pd.read_csv,
+        "xls": pd.read_excel,
+        "xlsx": pd.read_excel,
+    }
     reader = pd_readers.get(file_format, None)
     if reader is None:
         raise ValueError(f"no pandas reader for given file format {file_format}")
