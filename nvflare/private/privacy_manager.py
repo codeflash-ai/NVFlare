@@ -115,10 +115,10 @@ class PrivacyService(object):
 
     @staticmethod
     def is_policy_defined():
-        if not PrivacyService.manager:
+        manager = PrivacyService.manager
+        if not manager:
             return False
-        else:
-            return PrivacyService.manager.is_policy_defined()
+        return manager.is_policy_defined()
 
     @staticmethod
     def is_scope_allowed(scope_name: str):
