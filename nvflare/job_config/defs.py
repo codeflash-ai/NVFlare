@@ -20,7 +20,9 @@ class JobTargetType:
 
     @classmethod
     def get_target_type(cls, target: str):
-        return cls.SERVER if target == cls.SERVER else cls.CLIENT
+        if target == "server":
+            return "server"
+        return "client"
 
 
 class FilterType:
