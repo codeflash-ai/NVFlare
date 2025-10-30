@@ -102,11 +102,10 @@ def build_list_reverse_order_index(
         key_indices = {}
 
     for index, value in enumerate(config_list):
-        elmt_key = f"{key}[{index}]"
-        key_index = KeyIndex(key=elmt_key, value=value, parent_key=root_index, index=index)
-
         if value is None:
             continue
+        elmt_key = f"{key}[{index}]"
+        key_index = KeyIndex(key=elmt_key, value=value, parent_key=root_index, index=index)
 
         if isinstance(value, list):
             if len(value) > 0:
@@ -127,17 +126,10 @@ def build_list_reverse_order_index(
             )
         elif is_primitive(value):
             if key == "path":
-                has_dot = value.find(".") > 0
-                if has_dot:
-                    # we assume the path's pass value is class name
-                    # there are cases, this maybe not.
-                    # user may have to modify configuration manually in those cases
-                    last_dot_index = value.rindex(".")
-                    class_name = value[last_dot_index + 1 :]
+                if "." in value:
+                    class_name = value.rsplit(".", 1)[-1]
                     key_index.component_name = class_name
             elif key == "name":
-                # there are cases, where name is not component
-                # user may have to modify configuration manually in those cases
                 key_index.component_name = value
 
             add_to_indices(elmt_key, key_index, key_indices)
@@ -171,15 +163,17 @@ def build_dict_reverse_order_index(
         excluded_keys = []
     root_index = KeyIndex(key="", value=config, parent_key=None, index=None) if root_index is None else root_index
 
+    # Optimization: cache has_none_primitives_in_list function lookup
+    has_none_primitives_in_list_local = has_none_primitives_in_list
     for key, value in config.items():
         if key in excluded_keys:
             continue
         if value in excluded_keys:
             continue
-
         key_index = KeyIndex(key=key, value=value, parent_key=root_index, index=None)
         if isinstance(value, list):
-            if len(value) > 0 and has_none_primitives_in_list(value):
+            # Use if value and has_none_primitives_in_list_local(value) directly (avoid redundant len call)
+            if value and has_none_primitives_in_list_local(value):
                 key_indices = build_list_reverse_order_index(
                     config_list=value,
                     key=key,
@@ -189,41 +183,40 @@ def build_dict_reverse_order_index(
                 )
             else:
                 add_to_indices(key, key_index, key_indices)
-
         elif isinstance(value, ConfigTree):
             key_indices = build_dict_reverse_order_index(
                 config=value, excluded_keys=excluded_keys, root_index=key_index, key_indices=key_indices
             )
-
         elif is_primitive(value):
             parent_key = key_index.parent_key
             if key == "path":
-                has_dot = value.find(".") > 0
-                if has_dot:
-                    # we assume the path's pass value is class name
-                    # there are cases, this maybe not.
-                    # user may have to modify configuration manually in those cases
-                    last_dot_index = value.rindex(".")
-                    class_name = value[last_dot_index + 1 :]
+                if "." in value:
+                    # Fast class name using rsplit
+                    class_name = value.rsplit(".", 1)[-1]
                     key_index.component_name = class_name
                     parent_key.component_name = key_index.component_name if parent_key.index is not None else None
             elif key == "name":
-                # what if the name is not component ?
                 key_index.component_name = value
                 parent_key.component_name = key_index.component_name if parent_key.index else None
-
             add_to_indices(key, key_index, key_indices)
-
         else:
             raise RuntimeError(f"Unhandled data type: {type(value)}")
     return key_indices
 
 
 def add_to_indices(key, key_index, key_indices):
-    indices = key_indices.get(key, [])
+    # Hot path optimization: 
+    # Only append if key_index is not present in indices, but avoid O(n) 'not in' for large lists.
+    # Use a set per key for fast membership test and avoid slow list lookup.
+    # However, for behavioral preservation, must keep as list, and not change data structure.
+    # So, optimize only by localizing lookup.
+    indices = key_indices.get(key)
+    if indices is None:
+        indices = []
+        key_indices[key] = indices
     if key_index not in indices:
         indices.append(key_index)
-    key_indices[key] = indices
+    # Per existing behavior, assignment is not necessary if indices is already in key_indices[key]
 
 
 def add_class_defaults_to_key(excluded_keys, key_index, key_indices, results):
