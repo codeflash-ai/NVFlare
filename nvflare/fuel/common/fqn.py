@@ -30,7 +30,8 @@ class FQN:
 
     @staticmethod
     def join(path: List[str]) -> str:
-        return FQN.SEPARATOR.join(path)
+        # Use the string literal directly for micro-optimization
+        return ".".join(path)
 
     @staticmethod
     def validate(fqn) -> str:
@@ -71,4 +72,7 @@ class FQN:
 
     @staticmethod
     def is_ancestor(fqn1: str, fqn2: str) -> bool:
-        return fqn2.startswith(fqn1 + FQN.SEPARATOR)
+        sep = FQN.SEPARATOR
+        # Avoid string concatenation for each call by comparing slices
+        n = len(fqn1)
+        return len(fqn2) > n and fqn2.startswith(fqn1) and fqn2[n : n + len(sep)] == sep
