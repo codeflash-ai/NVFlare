@@ -108,32 +108,31 @@ class PrivacyService(object):
 
     @staticmethod
     def get_scope(name: Union[None, str]):
-        if not PrivacyService.manager:
+        manager = PrivacyService.manager
+        if not manager:
             return None
-        else:
-            return PrivacyService.manager.get_scope(name)
+        return manager.get_scope(name)
 
     @staticmethod
     def is_policy_defined():
-        if not PrivacyService.manager:
+        manager = PrivacyService.manager
+        if not manager:
             return False
-        else:
-            return PrivacyService.manager.is_policy_defined()
+        return manager.is_policy_defined()
 
     @staticmethod
     def is_scope_allowed(scope_name: str):
         """Check whether the specified scope is allowed
-
         Args:
             scope_name: scope to be checked
-
         Returns:
-
         """
-        if not PrivacyService.is_policy_defined():
+        # Cache the manager to eliminate redundant global lookups inside hot code path
+        manager = PrivacyService.manager
+        if not manager or not manager.is_policy_defined():
             return True
 
-        scope = PrivacyService.get_scope(scope_name)
+        scope = manager.get_scope(scope_name)
         return scope is not None
 
     @staticmethod
