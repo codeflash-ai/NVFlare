@@ -68,21 +68,24 @@ class Scope(object):
 
 class PrivacyManager(object):
     def __init__(
-        self, scopes: Union[None, List[Scope]], default_scope_name: Union[None, str], components: Union[None, dict]
+        self, scopes: Union[None, List["Scope"]], default_scope_name: Union[None, str], components: Union[None, dict]
     ):
         self.name_to_scopes = {}
         self.default_scope = None
         self.components = components
-
         if scopes:
+            # Use local variable for improved attribute access performance
+            name_to_scopes = self.name_to_scopes
             for s in scopes:
-                if s.name in self.name_to_scopes:
-                    raise ValueError(f"duplicate scopes defined for name '{s.name}'")
-                self.name_to_scopes[s.name] = s
+                name = s.name
+                if name in name_to_scopes:
+                    raise ValueError(f"duplicate scopes defined for name '{name}'")
+                name_to_scopes[name] = s
             if default_scope_name:
-                self.default_scope = self.name_to_scopes.get(default_scope_name)
-                if not self.default_scope:
+                default_scope = name_to_scopes.get(default_scope_name)
+                if not default_scope:
                     raise ValueError(f"specified default scope '{default_scope_name}' does not exist")
+                self.default_scope = default_scope
             self.policy_defined = True
         else:
             self.policy_defined = False
@@ -90,7 +93,6 @@ class PrivacyManager(object):
     def get_scope(self, name: Union[None, str]):
         if not name:
             return self.default_scope
-
         return self.name_to_scopes.get(name)
 
     def is_policy_defined(self):
