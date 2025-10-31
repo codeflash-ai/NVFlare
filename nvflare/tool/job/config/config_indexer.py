@@ -101,15 +101,16 @@ def build_list_reverse_order_index(
     if key_indices is None:
         key_indices = {}
 
+    # Minor optimization: move isinstance checks out of the loop where possible, and avoid repeated lookups/creation
+    add_indices = add_to_indices
+    is_prim = is_primitive
     for index, value in enumerate(config_list):
         elmt_key = f"{key}[{index}]"
         key_index = KeyIndex(key=elmt_key, value=value, parent_key=root_index, index=index)
-
         if value is None:
             continue
-
         if isinstance(value, list):
-            if len(value) > 0:
+            if value:  # Faster than len(value) > 0
                 key_indices = build_list_reverse_order_index(
                     config_list=value,
                     key=elmt_key,
@@ -118,29 +119,24 @@ def build_list_reverse_order_index(
                     key_indices=key_indices,
                 )
             else:
-                add_to_indices(elmt_key, key_index, key_indices)
+                add_indices(elmt_key, key_index, key_indices)
                 if key == "name":
                     key_index.component_name = value
         elif isinstance(value, ConfigTree):
             key_indices = build_dict_reverse_order_index(
                 config=value, excluded_keys=excluded_keys, root_index=key_index, key_indices=key_indices
             )
-        elif is_primitive(value):
+        elif is_prim(value):
             if key == "path":
-                has_dot = value.find(".") > 0
-                if has_dot:
-                    # we assume the path's pass value is class name
-                    # there are cases, this maybe not.
-                    # user may have to modify configuration manually in those cases
+                dot_idx = value.find(".") if isinstance(value, str) else -1
+                if dot_idx > 0:
                     last_dot_index = value.rindex(".")
                     class_name = value[last_dot_index + 1 :]
                     key_index.component_name = class_name
             elif key == "name":
-                # there are cases, where name is not component
-                # user may have to modify configuration manually in those cases
                 key_index.component_name = value
 
-            add_to_indices(elmt_key, key_index, key_indices)
+            add_indices(elmt_key, key_index, key_indices)
         else:
             raise RuntimeError(f"Unhandled data type: {type(value)}")
     return key_indices
@@ -169,17 +165,21 @@ def build_dict_reverse_order_index(
     key_indices = {} if key_indices is None else key_indices
     if excluded_keys is None:
         excluded_keys = []
-    root_index = KeyIndex(key="", value=config, parent_key=None, index=None) if root_index is None else root_index
+    if root_index is None:
+        root_index = KeyIndex(key="", value=config, parent_key=None, index=None)
 
+    # Localize function lookups
+    add_indices = add_to_indices
+    is_prim = is_primitive
+    has_non_prim = has_none_primitives_in_list
     for key, value in config.items():
         if key in excluded_keys:
             continue
         if value in excluded_keys:
             continue
-
         key_index = KeyIndex(key=key, value=value, parent_key=root_index, index=None)
         if isinstance(value, list):
-            if len(value) > 0 and has_none_primitives_in_list(value):
+            if value and has_non_prim(value):
                 key_indices = build_list_reverse_order_index(
                     config_list=value,
                     key=key,
@@ -188,32 +188,32 @@ def build_dict_reverse_order_index(
                     key_indices=key_indices,
                 )
             else:
-                add_to_indices(key, key_index, key_indices)
-
+                add_indices(key, key_index, key_indices)
         elif isinstance(value, ConfigTree):
             key_indices = build_dict_reverse_order_index(
                 config=value, excluded_keys=excluded_keys, root_index=key_index, key_indices=key_indices
             )
 
-        elif is_primitive(value):
+        elif is_prim(value):
             parent_key = key_index.parent_key
             if key == "path":
-                has_dot = value.find(".") > 0
-                if has_dot:
-                    # we assume the path's pass value is class name
-                    # there are cases, this maybe not.
-                    # user may have to modify configuration manually in those cases
+                dot_idx = value.find(".") if isinstance(value, str) else -1
+                if dot_idx > 0:
                     last_dot_index = value.rindex(".")
                     class_name = value[last_dot_index + 1 :]
                     key_index.component_name = class_name
-                    parent_key.component_name = key_index.component_name if parent_key.index is not None else None
+                    if parent_key.index is not None:
+                        parent_key.component_name = key_index.component_name
+                    else:
+                        parent_key.component_name = None
             elif key == "name":
-                # what if the name is not component ?
                 key_index.component_name = value
-                parent_key.component_name = key_index.component_name if parent_key.index else None
+                if parent_key.index:
+                    parent_key.component_name = key_index.component_name
+                else:
+                    parent_key.component_name = None
 
-            add_to_indices(key, key_index, key_indices)
-
+            add_indices(key, key_index, key_indices)
         else:
             raise RuntimeError(f"Unhandled data type: {type(value)}")
     return key_indices
