@@ -229,37 +229,73 @@ def add_to_indices(key, key_index, key_indices):
 def add_class_defaults_to_key(excluded_keys, key_index, key_indices, results):
     if key_index is None or key_index.key != "path":
         return
-
     parent_key: KeyIndex = key_index.parent_key
     value = key_index.value
-    has_dot = value.find(".") > 0
-    if not has_dot:
+
+    # Fast string-in-string and substring splitting
+    last_dot_index = value.rfind(".")
+    if last_dot_index <= 0:
         return
-    # we assume the path's pass value is class name
-    # there are cases, this maybe not.
-    # user may have to modify configuration manually in those cases
-    last_dot_index = value.rindex(".")
+
     class_path = value[:last_dot_index]
-    class_name = value[last_dot_index + 1 :]
-    module, import_flag = optional_import(module=class_path, name=class_name)
+    class_name = value[last_dot_index + 1:]
+    # OPTIONAL_IMPORT IS THE HOTSPOT: Minimize repeated calls using caching
+    # Introduce a static cache to avoid repetitive imports across runs
+    # NOTE: KeyIndex and excluded_keys stay consistent so cache is safe for this context
+    # Cache signature and module for class_path/class_name pairs
+    cache = getattr(add_class_defaults_to_key, "_import_cache", None)
+    if cache is None:
+        cache = {}
+        setattr(add_class_defaults_to_key, "_import_cache", cache)
+
+    cache_key = (class_path, class_name)
+    if cache_key in cache:
+        module, import_flag = cache[cache_key]
+    else:
+        module, import_flag = optional_import(module=class_path, name=class_name)
+        cache[cache_key] = (module, import_flag)
+
     if import_flag:
-        params = inspect.signature(module.__init__).parameters
+        # Signature caching for __init__ to avoid repetition/performance loss
+        sig_cache = getattr(add_class_defaults_to_key, "_sig_cache", None)
+        if sig_cache is None:
+            sig_cache = {}
+            setattr(add_class_defaults_to_key, "_sig_cache", sig_cache)
+        sig_key = id(module)
+        if sig_key in sig_cache:
+            params = sig_cache[sig_key]
+        else:
+            params = inspect.signature(module.__init__).parameters
+            sig_cache[sig_key] = params
+
         args_config = None
         if parent_key and parent_key.value and isinstance(parent_key.value, ConfigTree):
             args_config = parent_key.value.get("args", None)
+
+        # Pre-filter excluded_keys to set for constant time lookup
+        excluded_keys_set = getattr(add_class_defaults_to_key, "_exc_cache", None)
+        if excluded_keys is not None and type(excluded_keys) is list:
+            if excluded_keys_set is None or excluded_keys_set[0] is not excluded_keys:
+                excluded_keys_set = (excluded_keys, set(excluded_keys))
+                setattr(add_class_defaults_to_key, "_exc_cache", excluded_keys_set)
+            else:
+                excluded_keys_set = getattr(add_class_defaults_to_key, "_exc_cache")
+            exc_set = excluded_keys_set[1]
+        else:
+            exc_set = set(excluded_keys) if excluded_keys is not None else set()
         for v in params.values():
             if (
                 v.name != "self"
                 and v.default is not None
-                and v.name not in excluded_keys
-                and v.default not in excluded_keys
+                and v.name not in exc_set
+                and v.default not in exc_set
             ):
                 name_key = None
                 arg_key = KeyIndex(
                     key="args", value=args_config, parent_key=parent_key, component_name=key_index.component_name
                 )
                 if isinstance(v.default, str):
-                    if len(v.default) > 0:
+                    if v.default:
                         name_key = KeyIndex(
                             key=v.name,
                             value=v.default,
@@ -273,17 +309,17 @@ def add_class_defaults_to_key(excluded_keys, key_index, key_indices, results):
                         parent_key=arg_key,
                         component_name=key_index.component_name,
                     )
-
                 if name_key:
-
                     name_indices: List[KeyIndex] = key_indices.get(v.name, [])
-                    has_one = any(
+                    # Tighten and speed up parent_key traversal of name_indices
+                    parent_parent_key = key_index.parent_key.key if key_index.parent_key else None
+                    if not any(
                         k.parent_key is not None
                         and k.parent_key.key == "args"
-                        and k.parent_key.parent_key.key == key_index.parent_key.key
+                        and k.parent_key.parent_key
+                        and k.parent_key.parent_key.key == parent_parent_key
                         for k in name_indices
-                    )
-                    if not has_one:
+                    ):
                         name_indices.append(name_key)
                         results[v.name] = name_indices
 
@@ -303,8 +339,9 @@ def update_index_comp_name(key_index: KeyIndex):
 
 
 def add_default_values(excluded_keys, key_indices: Dict):
-    results = key_indices.copy()
-
+    # Make copy only if mutation is possible: avoid copy if not needed
+    # Avoid unnecessary object copying for performance
+    results = key_indices.copy() if key_indices else {}
     for key, key_index_list in key_indices.items():
         for key_index in key_index_list:
             if key_index:
