@@ -290,9 +290,7 @@ def add_class_defaults_to_key(excluded_keys, key_index, key_indices, results):
 
 def update_index_comp_name(key_index: KeyIndex):
     parent_key = key_index.parent_key
-    if parent_key is None:
-        return key_index
-    if not isinstance(key_index, KeyIndex):
+    if parent_key is None or not isinstance(key_index, KeyIndex):
         return key_index
     if parent_key.key == "args":
         grand_parent = parent_key.parent_key
@@ -315,9 +313,11 @@ def add_default_values(excluded_keys, key_indices: Dict):
 def populate_key_component_names(key_indices: Dict):
     results = {}
     for key, key_index_list in key_indices.items():
-        for key_index in key_index_list:
+        if key_index_list:
+            key_index = key_index_list[-1]
             if key_index:
                 key_index = update_index_comp_name(key_index)
-                key_index.component_name = "" if key_index.component_name is None else key_index.component_name
+                if key_index.component_name is None:
+                    key_index.component_name = ""
             results[key] = key_index
     return results
