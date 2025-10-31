@@ -23,6 +23,8 @@ from nvflare.fuel.utils.config import Config, ConfigFormat
 from nvflare.fuel.utils.config_factory import ConfigFactory
 from nvflare.fuel.utils.import_utils import optional_import
 
+_PRIMITIVE_TYPES = (int, float, str, bool)
+
 
 @dataclasses.dataclass
 class KeyIndex:
@@ -148,10 +150,7 @@ def build_list_reverse_order_index(
 
 def is_primitive(value):
     return (
-        isinstance(value, int)
-        or isinstance(value, float)
-        or isinstance(value, str)
-        or isinstance(value, bool)
+        isinstance(value, _PRIMITIVE_TYPES)
         or value is None
     )
 
