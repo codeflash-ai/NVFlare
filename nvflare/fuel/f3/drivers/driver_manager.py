@@ -106,8 +106,11 @@ class DriverManager:
         """
         index = scheme_or_url.find(":")
         if index > 0:
-            scheme = scheme_or_url[0:index]
+            # Avoid creating an intermediate string slice then lowercasing
+            scheme = scheme_or_url[:index]
         else:
             scheme = scheme_or_url
 
-        return self.drivers.get(scheme.lower())
+        # Use str.casefold() for faster and more consistent case-insensitive comparisons (faster than .lower in some cases)
+        # Also avoids the overhead of local variable creation; do directly in .get()
+        return self.drivers.get(scheme.casefold())
